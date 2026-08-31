@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SportCourt Perú - Mi Perfil</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="perfil">
+
+  <nav class="navbar">
+    <a class="brand" href="inicio.html">
+      <span class="brand-mark">SC</span>
+      <span class="brand-name">SportCourt <span>Perú</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="inicio.html">Inicio</a>
+      <a href="canchas.html">Canchas</a>
+      <a href="clases.html">Clases</a>
+      <a href="reservas.html">Mis Reservas</a>
+      <a href="perfil.html" class="active">Perfil</a>
+      <a href="admin.html" class="admin-link">Panel Admin</a>
+    </div>
+    <a class="user-chip" href="perfil.html">
+      <span class="avatar">C</span>
+      <span>Carlos</span>
+    </a>
+  </nav>
+
+  <main class="content" style="max-width:820px;">
+
+    <h1 style="font-size:2rem;margin:0 0 28px;font-weight:700;">Mi Perfil</h1>
+
+    <div class="perfil-card">
+      <div class="perfil-identity">
+        <div class="perfil-avatar">C</div>
+        <div>
+          <h2>Carlos Ramírez</h2>
+          <p class="perfil-contact">carlos@email.com · Lima, Perú</p>
+          <div class="perfil-badges">
+            <span class="perfil-badge">Miembro Premium</span>
+            <span class="perfil-badge since">Desde enero 2025</span>
+          </div>
+        </div>
+      </div>
+      <button class="edit-btn">Editar</button>
+    </div>
+
+    <div class="perfil-stats">
+      <div class="perfil-stat">
+        <div class="p-stat-num">8</div>
+        <div class="p-stat-label">Reservas totales</div>
+      </div>
+      <div class="perfil-stat">
+        <div class="p-stat-num">S/ 640</div>
+        <div class="p-stat-label">Total gastado</div>
+      </div>
+      <div class="perfil-stat">
+        <div class="p-stat-num">4.9 ★</div>
+        <div class="p-stat-label">Mi calificación</div>
+      </div>
+    </div>
+
+    <div class="perfil-menu">
+      <div class="perfil-menu-item">
+        <span class="menu-icon">🔔</span>
+        <div class="menu-text">
+          <div class="menu-title">Notificaciones</div>
+          <div class="menu-sub">Recordatorios y alertas de reservas</div>
+        </div>
+        <span class="menu-chevron">›</span>
+      </div>
+      <div class="perfil-menu-item">
+        <span class="menu-icon">💳</span>
+        <div class="menu-text">
+          <div class="menu-title">Métodos de pago</div>
+          <div class="menu-sub">Yape, Plin, tarjetas bancarias</div>
+        </div>
+        <span class="menu-chevron">›</span>
+      </div>
+      <div class="perfil-menu-item">
+        <span class="menu-icon">🔒</span>
+        <div class="menu-text">
+          <div class="menu-title">Seguridad</div>
+          <div class="menu-sub">Contraseña y verificación en dos pasos</div>
+        </div>
+        <span class="menu-chevron">›</span>
+      </div>
+      <div class="perfil-menu-item">
+        <span class="menu-icon">📍</span>
+        <div class="menu-text">
+          <div class="menu-title">Dirección guardada</div>
+          <div class="menu-sub">Miraflores, Lima</div>
+        </div>
+        <span class="menu-chevron">›</span>
+      </div>
+    </div>
+
+    <button class="logout-btn" id="logout-btn">Cerrar sesión</button>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

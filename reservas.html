@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SportCourt Perú - Mis Reservas</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="reservas">
+
+  <nav class="navbar">
+    <a class="brand" href="inicio.html">
+      <span class="brand-mark">SC</span>
+      <span class="brand-name">SportCourt <span>Perú</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="inicio.html">Inicio</a>
+      <a href="canchas.html">Canchas</a>
+      <a href="clases.html">Clases</a>
+      <a href="reservas.html" class="active">Mis Reservas</a>
+      <a href="perfil.html">Perfil</a>
+      <a href="admin.html" class="admin-link">Panel Admin</a>
+    </div>
+    <a class="user-chip" href="perfil.html">
+      <span class="avatar">C</span>
+      <span>Carlos</span>
+    </a>
+  </nav>
+
+  <main class="content">
+
+    <div class="reservas-header">
+      <div>
+        <h1>Mis Reservas</h1>
+        <p class="subtitle-page">Gestiona y visualiza el historial de tus reservas</p>
+      </div>
+      <div class="reservas-summary">
+        <div class="summary-chip">
+          <div class="summary-num" id="activas-count">2</div>
+          <div class="summary-label">Activas</div>
+        </div>
+        <div class="summary-chip">
+          <div class="summary-num" id="total-gastado">S/ 395</div>
+          <div class="summary-label">Total gastado</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reservas-tabs" id="reservas-tabs">
+      <button class="reservas-tab active" data-tab="todas">Todas</button>
+      <button class="reservas-tab" data-tab="confirmada">Confirmadas <span>2</span></button>
+      <button class="reservas-tab" data-tab="pendiente">Pendientes <span>1</span></button>
+      <button class="reservas-tab" data-tab="cancelada">Canceladas <span>1</span></button>
+    </div>
+
+    <div class="reservas-list" id="reservas-list">
+
+      <article class="reserva-card" data-status="confirmada">
+        <div class="reserva-media" style="background-image:url('https://images.unsplash.com/photo-1551958219-acbc608c6377?w=400&q=80')"></div>
+        <div class="reserva-info">
+          <div class="reserva-tags">
+            <span class="reserva-sport-tag">⚽ Fulbito</span>
+            <span class="reserva-status confirmada">Confirmada</span>
+          </div>
+          <h3>Cancha de Fulbito A</h3>
+          <div class="reserva-meta">
+            <span>📅 20 Agosto 2026</span>
+            <span>🕒 19:00 — 20:00</span>
+          </div>
+          <div class="reserva-actions">
+            <button class="ver-btn">Ver cancha</button>
+            <button class="cancel-btn">Cancelar</button>
+            <button class="comprobante-btn">Descargar comprobante</button>
+          </div>
+        </div>
+        <div class="reserva-price">
+          <div class="amount">S/ 80</div>
+          <div class="duration">1h</div>
+        </div>
+      </article>
+
+      <article class="reserva-card" data-status="confirmada">
+        <div class="reserva-media" style="background-image:url('https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=80')"></div>
+        <div class="reserva-info">
+          <div class="reserva-tags">
+            <span class="reserva-sport-tag">🎾 Tenis</span>
+            <span class="reserva-status confirmada">Confirmada</span>
+          </div>
+          <h3>Cancha de Tenis 1</h3>
+          <div class="reserva-meta">
+            <span>📅 22 Agosto 2026</span>
+            <span>🕒 08:00 — 10:00</span>
+          </div>
+          <div class="reserva-actions">
+            <button class="ver-btn">Ver cancha</button>
+            <button class="cancel-btn">Cancelar</button>
+            <button class="comprobante-btn">Descargar comprobante</button>
+          </div>
+        </div>
+        <div class="reserva-price">
+          <div class="amount">S/ 120</div>
+          <div class="duration">2h</div>
+        </div>
+      </article>
+
+      <article class="reserva-card" data-status="pendiente">
+        <div class="reserva-media" style="background-image:url('https://images.unsplash.com/photo-1459865264687-595d652de67e?w=400&q=80')"></div>
+        <div class="reserva-info">
+          <div class="reserva-tags">
+            <span class="reserva-sport-tag">🏟️ Fútbol</span>
+            <span class="reserva-status pendiente">Pendiente</span>
+          </div>
+          <h3>Cancha de Fútbol 11</h3>
+          <div class="reserva-meta">
+            <span>📅 01 Septiembre 2026</span>
+            <span>🕒 16:00 — 17:00</span>
+          </div>
+          <div class="reserva-actions">
+            <button class="ver-btn">Ver cancha</button>
+            <button class="cancel-btn">Cancelar</button>
+          </div>
+        </div>
+        <div class="reserva-price">
+          <div class="amount">S/ 150</div>
+          <div class="duration">1h</div>
+        </div>
+      </article>
+
+      <article class="reserva-card" data-status="cancelada">
+        <div class="reserva-media" style="background-image:url('https://images.unsplash.com/photo-1600965962102-9d260a71890d?w=400&q=80')"></div>
+        <div class="reserva-info">
+          <div class="reserva-tags">
+            <span class="reserva-sport-tag">🏊 Piscina</span>
+            <span class="reserva-status cancelada">Cancelada</span>
+          </div>
+          <h3>Piscina Olímpica</h3>
+          <div class="reserva-meta">
+            <span>📅 15 Julio 2026</span>
+            <span>🕒 07:00 — 8:00</span>
+          </div>
+          <div class="reserva-actions">
+            <button class="ver-btn">Ver cancha</button>
+          </div>
+        </div>
+        <div class="reserva-price">
+          <div class="amount">S/ 45</div>
+          <div class="duration">1h</div>
+        </div>
+      </article>
+
+    </div>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
