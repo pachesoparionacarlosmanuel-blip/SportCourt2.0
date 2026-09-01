@@ -53,7 +53,7 @@
 
     <div class="courts-grid" id="courts-grid">
 
-      <article class="court-card" data-sport="fulbito" data-name="Cancha de Fulbito A">
+      <article class="court-card" data-court-id="c1" data-sport="fulbito" data-name="Cancha de Fulbito A">
         <div class="court-media" style="background-image:url('https://images.unsplash.com/photo-1551958219-acbc608c6377?w=600&q=80')">
           <span class="court-tag">⚽ Fulbito</span>
           <span class="court-status available">Disponible</span>
@@ -63,12 +63,12 @@
           <p>Cancha de fulbito sintética de última generación con iluminación LED de alta intensidad, perfecta para partidos nocturnos.</p>
           <div class="court-footer">
             <div class="court-price">S/ 80 <span>/hora</span></div>
-            <div class="court-capacity">👥 hasta 10</div>
+            <div class="court-capacity">👥 hasta 10</div><button class="reserve-btn" type="button">Reservar cancha</button>
           </div>
         </div>
       </article>
 
-      <article class="court-card" data-sport="futbol" data-name="Cancha de Fútbol 11">
+      <article class="court-card" data-court-id="c2" data-sport="futbol" data-name="Cancha de Fútbol 11">
         <div class="court-media" style="background-image:url('https://images.unsplash.com/photo-1459865264687-595d652de67e?w=600&q=80')">
           <span class="court-tag">🏟️ Fútbol</span>
           <span class="court-status available">Disponible</span>
@@ -78,12 +78,12 @@
           <p>Campo reglamentario de fútbol 11 con pasto natural de bermuda, ideal para equipos que buscan la experiencia completa.</p>
           <div class="court-footer">
             <div class="court-price">S/ 150 <span>/hora</span></div>
-            <div class="court-capacity">👥 hasta 22</div>
+            <div class="court-capacity">👥 hasta 22</div><button class="reserve-btn" type="button">Reservar cancha</button>
           </div>
         </div>
       </article>
 
-      <article class="court-card" data-sport="tenis" data-name="Cancha de Tenis 1">
+      <article class="court-card" data-court-id="c3" data-sport="tenis" data-name="Cancha de Tenis 1">
         <div class="court-media" style="background-image:url('https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=600&q=80')">
           <span class="court-tag">🎾 Tenis</span>
           <span class="court-status available">Disponible</span>
@@ -93,12 +93,12 @@
           <p>Cancha de tenis en arcilla roja homologada, con red reglamentaria y sistema de drenaje para rápida recuperación tras lluvias.</p>
           <div class="court-footer">
             <div class="court-price">S/ 60 <span>/hora</span></div>
-            <div class="court-capacity">👥 hasta 4</div>
+            <div class="court-capacity">👥 hasta 4</div><button class="reserve-btn" type="button">Reservar cancha</button>
           </div>
         </div>
       </article>
 
-      <article class="court-card" data-sport="tenis" data-name="Cancha de Tenis 2">
+      <article class="court-card" data-court-id="c4" data-sport="tenis" data-name="Cancha de Tenis 2">
         <div class="court-media is-unavailable" style="background-image:url('https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=600&q=80')">
           <span class="court-tag">🎾 Tenis</span>
           <span class="court-status unavailable">No disponible hoy</span>
@@ -108,12 +108,12 @@
           <p>Cancha de tenis en superficie dura con iluminación artificial para partidos nocturnos. Incluye marcador electrónico.</p>
           <div class="court-footer">
             <div class="court-price">S/ 65 <span>/hora</span></div>
-            <div class="court-capacity">👥 hasta 4</div>
+            <div class="court-capacity">👥 hasta 4</div><button class="reserve-btn" type="button">Reservar cancha</button>
           </div>
         </div>
       </article>
 
-      <article class="court-card" data-sport="piscina" data-name="Piscina Olímpica">
+      <article class="court-card" data-court-id="c5" data-sport="piscina" data-name="Piscina Olímpica">
         <div class="court-media" style="background-image:url('https://images.unsplash.com/photo-1600965962102-9d260a71890d?w=600&q=80')">
           <span class="court-tag">🏊 Piscina</span>
           <span class="court-status available">Disponible</span>
@@ -123,12 +123,12 @@
           <p>Piscina semiolímpica de 25 metros con 6 carriles, temperatura controlada a 28°C y sistema de purificación UV para máxima higiene.</p>
           <div class="court-footer">
             <div class="court-price">S/ 45 <span>/hora</span></div>
-            <div class="court-capacity">👥 hasta 12</div>
+            <div class="court-capacity">👥 hasta 12</div><button class="reserve-btn" type="button">Reservar cancha</button>
           </div>
         </div>
       </article>
 
-      <article class="court-card" data-sport="fulbito" data-name="Cancha Fulbito B">
+      <article class="court-card" data-court-id="c6" data-sport="fulbito" data-name="Cancha Fulbito B">
         <div class="court-media" style="background-image:url('https://images.unsplash.com/photo-1606925797300-0b35e9d1794e?w=600&q=80')">
           <span class="court-tag">⚽ Fulbito</span>
           <span class="court-status available">Disponible</span>
@@ -138,7 +138,7 @@
           <p>Segunda cancha de fulbito con césped sintético de última generación, techada para protección ante lluvias intensas.</p>
           <div class="court-footer">
             <div class="court-price">S/ 75 <span>/hora</span></div>
-            <div class="court-capacity">👥 hasta 10</div>
+            <div class="court-capacity">👥 hasta 10</div><button class="reserve-btn" type="button">Reservar cancha</button>
           </div>
         </div>
       </article>
@@ -146,6 +146,37 @@
     </div>
 
   </main>
+
+  <div class="reservation-modal" id="reservation-modal" aria-hidden="true">
+    <div class="reservation-modal-card" role="dialog" aria-modal="true" aria-labelledby="reservation-title">
+      <button class="modal-close" id="reservation-close" type="button" aria-label="Cerrar">×</button>
+      <div class="reservation-modal-header">
+        <span class="modal-icon">📅</span>
+        <div>
+          <h2 id="reservation-title">Reservar cancha</h2>
+          <p id="reservation-court-name">Selecciona el día y la hora</p>
+        </div>
+      </div>
+      <form id="reservation-form">
+        <div class="reservation-field">
+          <label for="reservation-date">Fecha</label>
+          <input id="reservation-date" type="date" required>
+          <small>Elige una fecha desde hoy.</small>
+        </div>
+        <div class="reservation-field">
+          <label>Horario disponible</label>
+          <div class="time-slots" id="time-slots"></div>
+          <input id="reservation-time" type="hidden" required>
+          <small id="availability-message">Los horarios ocupados no estarán disponibles.</small>
+        </div>
+        <div class="reservation-summary-box">
+          <span>Precio por hora</span><strong id="reservation-price">S/ 0</strong>
+        </div>
+        <p class="reservation-feedback" id="reservation-feedback" aria-live="polite"></p>
+        <button class="confirm-reservation-btn" type="submit">Confirmar reserva</button>
+      </form>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>

@@ -116,6 +116,34 @@ if (courtsGrid) {
   const resultsCount = document.getElementById('results-count');
   let activeFilter = 'todos';
 
+  function renderPublicCourts() {
+    const courts = getCourts();
+    courtsGrid.innerHTML = courts.map(function(c) {
+      const available = c.status === 'disponible';
+      return '<article class=\"court-card\" data-court-id=\"' + c.id + '\" data-sport=\"' + c.sport + '\" data-name=\"' + String(c.name).replace(/\"/g, '&quot;') + '\">' +
+        '<div class=\"court-media' + (available ? '' : ' is-unavailable') + '\" style=\"background-image:url(\'' + (c.image || '') + '\')\">' +
+          '<span class=\"court-tag\">' + (c.sport === 'fulbito' ? '⚽ Fulbito' : c.sport === 'futbol' ? '🏟️ Fútbol' : c.sport === 'tenis' ? '🎾 Tenis' : '🏊 Piscina') + '</span>' +
+          '<span class=\"court-status ' + (available ? 'available' : 'unavailable') + '\">' + (available ? 'Disponible' : 'No disponible') + '</span>' +
+        '</div>' +
+        '<div class=\"court-body\">' +
+          '<h3>' + c.name + '</h3>' +
+          '<p>' + (c.desc || 'Cancha deportiva disponible para reservas.') + '</p>' +
+          '<div class=\"court-footer\"><div class=\"court-price\">S/ ' + Number(c.price || 0) + ' <span>/ hora</span></div>' +
+          '<div class=\"court-capacity\">👥 hasta ' + Number(c.capacity || 0) + '</div></div>' +
+          (available ? '<button class=\"reserve-btn\" type=\"button\">Reservar cancha</button>' : '<button class=\"reserve-btn\" type=\"button\" disabled>No disponible</button>') +
+        '</div></article>';
+    }).join('');
+
+    courtsGrid.querySelectorAll('.reserve-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const card = btn.closest('.court-card');
+        if (card) openReservation(card.dataset.courtId);
+      });
+    });
+  }
+
+  renderPublicCourts();
+
   function applyFilters() {
     const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
     const cards = document.querySelectorAll('.court-card');
@@ -147,36 +175,190 @@ if (courtsGrid) {
 }
 
 // ---------------------------------------------
-// Mis Reservas: filtro por estado (tabs) + cancelar
+// Reservas: calendario + horarios + persistencia local
+// ---------------------------------------------
+const reservationModal = document.getElementById('reservation-modal');
+const reservationForm = document.getElementById('reservation-form');
+const reservationDate = document.getElementById('reservation-date');
+const reservationTime = document.getElementById('reservation-time');
+const timeSlots = document.getElementById('time-slots');
+const reservationFeedback = document.getElementById('reservation-feedback');
+const reservationCourtName = document.getElementById('reservation-court-name');
+const reservationPrice = document.getElementById('reservation-price');
+const reservationClose = document.getElementById('reservation-close');
+
+const DEFAULT_COURTS = [
+  { id: 'c1', sport: 'fulbito', name: 'Cancha de Fulbito A', desc: 'Cancha de fulbito sintética de última generación con iluminación LED de alta intensidad.', price: 80, capacity: 10, image: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=400&q=80', status: 'disponible' },
+  { id: 'c2', sport: 'futbol', name: 'Cancha de Fútbol 11', desc: 'Campo reglamentario de fútbol 11 con pasto natural de bermuda.', price: 150, capacity: 22, image: 'https://images.unsplash.com/photo-1459865264687-595d652de67e?w=400&q=80', status: 'disponible' },
+  { id: 'c3', sport: 'tenis', name: 'Cancha de Tenis 1', desc: 'Cancha de tenis en arcilla roja homologada, con red reglamentaria.', price: 60, capacity: 4, image: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=80', status: 'disponible' },
+  { id: 'c4', sport: 'tenis', name: 'Cancha de Tenis 2', desc: 'Cancha de tenis en superficie dura con iluminación artificial.', price: 65, capacity: 4, image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&q=80', status: 'no_disponible' },
+  { id: 'c5', sport: 'piscina', name: 'Piscina Olímpica', desc: 'Piscina semiolímpica de 25 metros con 6 carriles y temperatura controlada.', price: 45, capacity: 12, image: 'https://images.unsplash.com/photo-1600965962102-9d260a71890d?w=400&q=80', status: 'disponible' },
+  { id: 'c6', sport: 'fulbito', name: 'Cancha Fulbito B', desc: 'Segunda cancha de fulbito con césped sintético, techada.', price: 75, capacity: 10, image: 'https://images.unsplash.com/photo-1606925797300-0b35e9d1794e?w=400&q=80', status: 'disponible' }
+];
+function getCourts() {
+  try {
+    const raw = localStorage.getItem('sportcourt_courts');
+    if (raw) {
+      const data = JSON.parse(raw);
+      return Array.isArray(data) ? data : DEFAULT_COURTS.slice();
+    }
+  } catch (e) {}
+  return DEFAULT_COURTS.slice();
+}
+function getCourt(courtId) {
+  return getCourts().find(function(c) { return c.id === courtId; }) || null;
+}
+function ensureCourtsStorage() {
+  if (!localStorage.getItem('sportcourt_courts')) {
+    localStorage.setItem('sportcourt_courts', JSON.stringify(DEFAULT_COURTS));
+  }
+}
+ensureCourtsStorage();
+
+const HOURS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+
+function localDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + d;
+}
+function displayDate(dateKey) {
+  const parts = dateKey.split('-');
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  return d.toLocaleDateString('es-PE', { day:'2-digit', month:'long', year:'numeric' });
+}
+function getReservations() {
+  try { return JSON.parse(localStorage.getItem('sportcourt_reservations') || '[]'); }
+  catch (e) { return []; }
+}
+function saveReservations(data) { localStorage.setItem('sportcourt_reservations', JSON.stringify(data)); }
+function reservationDateKey(r) {
+  if (r.dateKey) return r.dateKey;
+  const match = String(r.date || '').match(/(\d{1,2})\s+([A-Za-zÁÉÍÓÚáéíóú]+)\s+(\d{4})/i);
+  if (!match) return '';
+  const months = { enero:1, febrero:2, marzo:3, abril:4, mayo:5, junio:6, julio:7, agosto:8, septiembre:9, octubre:10, noviembre:11, diciembre:12 };
+  const month = months[match[2].toLowerCase()];
+  return month ? match[3] + '-' + String(month).padStart(2,'0') + '-' + String(match[1]).padStart(2,'0') : '';
+}
+function reservationHour(r) { return String(r.time || '').split(' ')[0].split('—')[0].trim(); }
+function isOccupied(courtId, dateKey, hour) {
+  return getReservations().some(function(r) {
+    const court = getCourt(courtId);
+    const sameCourt = (r.courtId === courtId) || (!r.courtId && court && r.item === court.name);
+    const active = r.status !== 'cancelada';
+    return sameCourt && active && reservationDateKey(r) === dateKey && reservationHour(r) === hour;
+  });
+}
+function renderTimeSlots() {
+  if (!timeSlots || !reservationDate || !reservationTime) return;
+  const dateKey = reservationDate.value;
+  const courtId = reservationForm.dataset.courtId;
+  reservationTime.value = '';
+  timeSlots.innerHTML = '';
+  if (!dateKey || !courtId) return;
+  HOURS.forEach(function(hour) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'time-slot' + (isOccupied(courtId, dateKey, hour) ? ' occupied' : '');
+    btn.textContent = hour + ' — ' + String(Number(hour.slice(0,2)) + 1).padStart(2,'0') + ':00';
+    btn.dataset.time = hour;
+    btn.disabled = isOccupied(courtId, dateKey, hour);
+    btn.addEventListener('click', function() {
+      timeSlots.querySelectorAll('.time-slot').forEach(function(b){ b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      reservationTime.value = hour;
+      reservationFeedback.textContent = '';
+    });
+    timeSlots.appendChild(btn);
+  });
+}
+function openReservation(courtId) {
+  if (getRole() === 'invitado') { window.location.href = 'login.html'; return; }
+  const court = getCourt(courtId);
+  if (!court || court.status !== 'disponible') { alert('Esta cancha no está disponible.'); return; }
+  reservationForm.dataset.courtId = courtId;
+  reservationCourtName.textContent = court.name;
+  reservationPrice.textContent = 'S/ ' + court.price;
+  reservationFeedback.textContent = '';
+  const today = new Date();
+  reservationDate.min = localDateKey(today);
+  if (!reservationDate.value || reservationDate.value < reservationDate.min) reservationDate.value = reservationDate.min;
+  renderTimeSlots();
+  reservationModal.classList.add('open');
+  reservationModal.setAttribute('aria-hidden','false');
+}
+function closeReservation() {
+  if (!reservationModal) return;
+  reservationModal.classList.remove('open');
+  reservationModal.setAttribute('aria-hidden','true');
+}
+
+if (reservationDate) reservationDate.addEventListener('change', renderTimeSlots);
+if (reservationClose) reservationClose.addEventListener('click', closeReservation);
+if (reservationModal) reservationModal.addEventListener('click', function(e){ if(e.target === reservationModal) closeReservation(); });
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeReservation(); });
+if (reservationForm) {
+  reservationForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const courtId = reservationForm.dataset.courtId;
+    const court = getCourt(courtId);
+    const dateKey = reservationDate.value;
+    const hour = reservationTime.value;
+    if (!court || !dateKey || !hour) { reservationFeedback.textContent = 'Selecciona una fecha y un horario.'; return; }
+    if (dateKey < reservationDate.min) { reservationFeedback.textContent = 'La fecha no puede ser anterior a hoy.'; return; }
+    if (isOccupied(courtId, dateKey, hour)) { reservationFeedback.textContent = 'Ese horario acaba de ser ocupado. Elige otro.'; renderTimeSlots(); return; }
+    const reservations = getReservations();
+    reservations.push({
+      id: 'r' + Date.now(), courtId: courtId, user: localStorage.getItem('sportcourt_user') || '',
+      userName: getUserName(), item: court.name, dateKey: dateKey, date: displayDate(dateKey),
+      time: hour + ' — ' + String(Number(hour.slice(0,2)) + 1).padStart(2,'0') + ':00',
+      price: court.price, status: 'confirmada', createdAt: new Date().toISOString()
+    });
+    saveReservations(reservations);
+    closeReservation();
+    alert('Reserva confirmada para ' + court.name + ' el ' + displayDate(dateKey) + ' a las ' + hour + '.');
+  });
+}
+
+// ---------------------------------------------
+// Mis Reservas: renderiza las reservas reales del usuario
 // ---------------------------------------------
 const reservasList = document.getElementById('reservas-list');
 if (reservasList) {
+  function renderUserReservations(filter) {
+    const currentUser = localStorage.getItem('sportcourt_user') || '';
+    const all = getReservations().filter(function(r){ return r.user === currentUser; });
+    const filtered = filter === 'todas' ? all : all.filter(function(r){ return r.status === filter; });
+    reservasList.innerHTML = filtered.length ? filtered.map(function(r){
+      const statusLabel = r.status === 'confirmada' ? 'Confirmada' : r.status === 'pendiente' ? 'Pendiente' : 'Cancelada';
+      const canCancel = r.status !== 'cancelada';
+      return '<article class="reserva-card" data-status="' + r.status + '">' +
+        '<div class="reserva-info">' +
+        '<div class="reserva-tags"><span class="reserva-sport-tag">🏟️ Cancha</span><span class="reserva-status ' + r.status + '">' + statusLabel + '</span></div>' +
+        '<h3>' + r.item + '</h3>' +
+        '<div class="reserva-meta"><span>📅 ' + r.date + '</span><span>🕒 ' + r.time + '</span></div>' +
+        '<div class="reserva-actions">' +
+        '<button class="ver-btn" type="button">Ver cancha</button>' +
+        (canCancel ? '<button class="cancel-btn" data-id="' + r.id + '" type="button">Cancelar</button>' : '') +
+        '<button class="comprobante-btn" data-id="' + r.id + '" type="button">Descargar comprobante</button>' +
+        '</div></div><div class="reserva-price"><div class="amount">S/ ' + r.price + '</div><div class="duration">1h</div></div></article>';
+    }).join('') : '<div class="empty-state"><h3>No tienes reservas en este filtro.</h3><p>Ve a Canchas para seleccionar un día y horario disponible.</p></div>';
+    const active = all.filter(function(r){ return r.status === 'confirmada' || r.status === 'pendiente'; }).length;
+    const spent = all.filter(function(r){ return r.status !== 'cancelada'; }).reduce(function(sum,r){ return sum + Number(r.price || 0); },0);
+    const ac = document.getElementById('activas-count'); if(ac) ac.textContent = active;
+    const tg = document.getElementById('total-gastado'); if(tg) tg.textContent = 'S/ ' + spent;
+  }
+  let currentFilter = 'todas';
   const tabs = document.querySelectorAll('.reservas-tab');
-  const reservaCards = document.querySelectorAll('.reserva-card');
-
-  tabs.forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      tabs.forEach(function (t) { t.classList.remove('active'); });
-      tab.classList.add('active');
-      const filter = tab.dataset.tab;
-
-      reservaCards.forEach(function (card) {
-        const show = filter === 'todas' || card.dataset.status === filter;
-        card.hidden = !show;
-      });
-    });
+  tabs.forEach(function(tab){ tab.addEventListener('click', function(){ tabs.forEach(function(t){t.classList.remove('active');}); tab.classList.add('active'); currentFilter=tab.dataset.tab; renderUserReservations(currentFilter); }); });
+  reservasList.addEventListener('click', function(e){
+    const cancel = e.target.closest('.cancel-btn');
+    if(cancel){ const id=cancel.dataset.id; const data=getReservations().map(function(r){return r.id===id?Object.assign({},r,{status:'cancelada'}):r;}); saveReservations(data); renderUserReservations(currentFilter); return; }
+    const receipt = e.target.closest('.comprobante-btn');
+    if(receipt){ const r=getReservations().find(function(x){return x.id===receipt.dataset.id;}); if(r){ const blob=new Blob(['SportCourt Perú\nComprobante de reserva\n\nUsuario: '+r.user+'\nCancha: '+r.item+'\nFecha: '+r.date+'\nHorario: '+r.time+'\nMonto: S/ '+r.price+'\nEstado: '+r.status],{type:'text/plain;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='comprobante-'+r.id+'.txt'; a.click(); URL.revokeObjectURL(a.href); } }
   });
-
-  document.querySelectorAll('.reserva-card .cancel-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const card = btn.closest('.reserva-card');
-      card.dataset.status = 'cancelada';
-      const statusEl = card.querySelector('.reserva-status');
-      statusEl.textContent = 'Cancelada';
-      statusEl.className = 'reserva-status cancelada';
-      btn.remove();
-    });
-  });
+  renderUserReservations(currentFilter);
 }
 
 // ---------------------------------------------
@@ -196,15 +378,54 @@ document.querySelectorAll('.enroll-btn').forEach(function (btn) {
 });
 
 // ---------------------------------------------
+// Perfil: muestra los datos de la sesión actual
+// ---------------------------------------------
+if (document.body.dataset.page === 'perfil') {
+  const profileName = document.getElementById('perfil-name');
+  const profileEmail = document.getElementById('perfil-email');
+  const profileAvatar = document.getElementById('perfil-avatar');
+  const profileReservations = document.getElementById('perfil-reservas-count');
+  const profileSpent = document.getElementById('perfil-total-gastado');
+  const currentEmail = localStorage.getItem('sportcourt_user') || '';
+  const currentName = getUserName();
+
+  if (profileName) profileName.textContent = currentName;
+  if (profileEmail) profileEmail.textContent = currentEmail || 'Sin correo';
+  if (profileAvatar) profileAvatar.textContent = (currentName || 'U').charAt(0).toUpperCase();
+
+  const userReservations = getReservations().filter(function (r) {
+    return r.user === currentEmail;
+  });
+  const totalSpent = userReservations
+    .filter(function (r) { return r.status !== 'cancelada'; })
+    .reduce(function (sum, r) { return sum + Number(r.price || 0); }, 0);
+
+  if (profileReservations) profileReservations.textContent = userReservations.length;
+  if (profileSpent) profileSpent.textContent = 'S/ ' + totalSpent;
+}
+
+// ---------------------------------------------
 // Cerrar sesión -> vuelve a Login
 // ---------------------------------------------
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
-  logoutBtn.addEventListener('click', function () {
+  logoutBtn.addEventListener('click', function (e) {
+    e.preventDefault();
     localStorage.removeItem('sportcourt_user');
     localStorage.removeItem('sportcourt_role');
     localStorage.removeItem('sportcourt_user_name');
-    window.location.href = 'login.html';
+    window.location.replace('login.html');
+  });
+}
+
+// Revalida las páginas protegidas al volver con el botón Atrás.
+if (document.body.dataset.page === 'reservas' || document.body.dataset.page === 'perfil' || document.body.dataset.page === 'admin') {
+  window.addEventListener('pageshow', function () {
+    const role = getRole();
+    const page = document.body.dataset.page;
+    if ((page === 'admin' && role !== 'admin') || ((page === 'reservas' || page === 'perfil') && role === 'invitado')) {
+      window.location.replace(page === 'admin' ? 'index.html' : 'login.html');
+    }
   });
 }
 
