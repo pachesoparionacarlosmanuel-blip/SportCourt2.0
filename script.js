@@ -24,7 +24,7 @@ if (loginForm) {
     localStorage.setItem('sportcourt_role', role);
     localStorage.setItem('sportcourt_user_name', name);
 
-    window.location.href = role === 'admin' ? 'admin.html' : 'inicio.html';
+    window.location.href = role === 'admin' ? 'admin.html' : 'index.html';
   });
 }
 
@@ -36,7 +36,7 @@ if (guestLink) {
     localStorage.removeItem('sportcourt_user');
     localStorage.setItem('sportcourt_role', 'invitado');
     localStorage.setItem('sportcourt_user_name', 'Invitado');
-    window.location.href = 'inicio.html';
+    window.location.href = 'index.html';
   });
 }
 
@@ -94,7 +94,7 @@ if (document.body.dataset.page === 'reservas' || document.body.dataset.page === 
 
 // Panel Admin: solo accesible para administradores
 if (document.body.dataset.page === 'admin' && getRole() !== 'admin') {
-  window.location.href = 'inicio.html';
+  window.location.href = 'index.html';
 }
 
 // ---------------------------------------------
