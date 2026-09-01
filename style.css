@@ -49,7 +49,7 @@ input{font-family:inherit;}
 .admin-link{display:none;}
 .nav-links a.admin-link{color:#a8681a;}
 .nav-links a.admin-link:hover{color:#8a5615;}
-.user-chip.guest-chip{
+.user-chip.guest-chip{  
   background:var(--green-600);color:#fff;padding:8px 16px;border-radius:999px;
   font-size:0.9rem;font-weight:600;
 }
@@ -639,3 +639,62 @@ input[type="email"]:focus, input[type="password"]:focus, input[type="text"]:focu
   .admin-grid{grid-template-columns:1fr;}
   .data-table{display:block;overflow-x:auto;white-space:nowrap;}
 }
+
+/* =============================================
+   RESERVA DE CANCHA: calendario + horarios
+   ============================================= */
+.reserve-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--primary, #111827);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: auto;
+}
+.reserve-btn:hover { opacity: .9; }
+.reserve-btn:disabled { opacity: .45; cursor: not-allowed; }
+.reservation-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15,23,42,.58);
+  z-index: 1000;
+}
+.reservation-modal.open { display: flex; }
+.reservation-modal-card {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.22);
+}
+.modal-close {
+  position: absolute; right: 16px; top: 12px; border: 0; background: transparent;
+  font-size: 30px; cursor: pointer; color: #64748b;
+}
+.reservation-modal-header { display:flex; gap:14px; align-items:center; margin-bottom:22px; padding-right:28px; }
+.modal-icon { font-size: 34px; }
+.reservation-modal-header h2 { margin:0 0 4px; }
+.reservation-modal-header p { margin:0; color:#64748b; }
+.reservation-field { margin-bottom:18px; }
+.reservation-field label { display:block; font-weight:700; margin-bottom:8px; }
+.reservation-field input[type="date"] { width:100%; box-sizing:border-box; padding:12px; border:1px solid #cbd5e1; border-radius:10px; font:inherit; }
+.reservation-field small { display:block; color:#64748b; margin-top:7px; }
+.time-slots { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+.time-slot { padding:11px 8px; border:1px solid #cbd5e1; background:#fff; border-radius:9px; cursor:pointer; font-weight:600; }
+.time-slot:hover { border-color:#2563eb; }
+.time-slot.selected { background:#2563eb; color:#fff; border-color:#2563eb; }
+.time-slot.occupied { background:#f1f5f9; color:#94a3b8; text-decoration:line-through; cursor:not-allowed; }
+.reservation-summary-box { display:flex; justify-content:space-between; padding:14px 16px; background:#f8fafc; border-radius:10px; margin:18px 0; }
+.reservation-feedback { min-height:22px; margin:8px 0; color:#b91c1c; font-weight:600; }
+.confirm-reservation-btn { width:100%; border:0; border-radius:10px; padding:13px; background:#16a34a; color:#fff; font-weight:800; cursor:pointer; font-size:1rem; }
+.confirm-reservation-btn:disabled { opacity:.5; cursor:not-allowed; }
+@media (max-width: 520px) { .time-slots { grid-template-columns:repeat(2,1fr); } .reservation-modal-card { padding:22px 18px; } .reserve-btn { width:100%; margin-top:10px; } }
