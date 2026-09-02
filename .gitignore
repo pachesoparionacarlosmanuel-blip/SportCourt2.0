@@ -1,1 +1,32 @@
+# Dependencies
 node_modules/
+*.npm
+*.lock
+
+# Production
+dist/
+build/
+*.min.js
+*.min.css
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Legacy files (deprecated - migrated to Tailwind)
+style.css
+script.js
