@@ -712,3 +712,4 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
     if (e.target === formPanel) closeForm();
   });
 }
+// Prueba de GitHub Actions
