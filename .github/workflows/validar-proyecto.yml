@@ -22,7 +22,7 @@ jobs:
         run: npm ci
 
       - name: Revisar script.js
-        run: node --check script.js
+        run: npm test
 
       - name: Compilar Tailwind CSS
-        run: npx @tailwindcss/cli -i ./input.css -o ./tailwind-output.css --minify
+        run: npm run build:css
