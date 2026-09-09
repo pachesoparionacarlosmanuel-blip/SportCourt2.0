@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Servicio de negocio para reservas
@@ -25,8 +26,8 @@ public class ReservaService {
     private final CanchaService canchaService;
 
     public ReservaService(ReservaRepository reservaRepository,
-                          UsuarioService usuarioService,
-                          CanchaService canchaService) {
+            UsuarioService usuarioService,
+            CanchaService canchaService) {
         this.reservaRepository = reservaRepository;
         this.usuarioService = usuarioService;
         this.canchaService = canchaService;
@@ -39,7 +40,8 @@ public class ReservaService {
      * 1. Usuario existe
      * 2. Cancha existe
      * 3. Hora inicio < Hora fin
-     * 4. NO hay reserva duplicada (mismo usuario, cancha, fecha, horas superpuestas)
+     * 4. NO hay reserva duplicada (mismo usuario, cancha, fecha, horas
+     * superpuestas)
      * 5. Capacidad disponible
      */
     public Reserva crearReserva(ReservaDTO reservaDTO) {
@@ -53,7 +55,7 @@ public class ReservaService {
         validarHorarios(reservaDTO.getHoraInicio(), reservaDTO.getHoraFin());
 
         // Validación 4: NO hay duplicados
-        validarNoDuplicada(reservaDTO);
+        validarNoDuplicada(reservaDTO, null);
 
         // Validación 5: Capacidad disponible
         validarCapacidadDisponible(reservaDTO.getCanchaId());
@@ -80,6 +82,9 @@ public class ReservaService {
         usuarioService.verificarUsuarioExiste(reservaDTO.getUsuarioId());
         canchaService.obtenerCancha(reservaDTO.getCanchaId());
         validarHorarios(reservaDTO.getHoraInicio(), reservaDTO.getHoraFin());
+
+        // Validar que no exista otra reserva en ese horario
+        validarNoDuplicada(reservaDTO, id);
 
         reserva.setUsuarioId(reservaDTO.getUsuarioId());
         reserva.setCanchaId(reservaDTO.getCanchaId());
@@ -129,7 +134,7 @@ public class ReservaService {
      * Eliminar una reserva
      */
     public void eliminarReserva(Integer id) {
-        obtenerReserva(id);  // Verifica que existe
+        obtenerReserva(id); // Verifica que existe
         reservaRepository.deleteById(id);
     }
 
@@ -156,41 +161,47 @@ public class ReservaService {
      * - Horas superpuestas (inicio1 < fin2 AND fin1 > inicio2)
      * - Estado NO cancelada
      */
-    private void validarNoDuplicada(ReservaDTO reservaDTO) {
-        List<Reserva> reservasExistentes = reservaRepository.findAll().stream()
-                .filter(r -> r.getUsuarioId().equals(reservaDTO.getUsuarioId()))
-                .filter(r -> r.getCanchaId().equals(reservaDTO.getCanchaId()))
-                .filter(r -> r.getFecha().equals(reservaDTO.getFecha()))
-                .filter(r -> !r.getEstado().equals("cancelada"))
-                .toList();
+    private void validarNoDuplicada(ReservaDTO reservaDTO, Integer reservaIdExcluir) {
 
-        for (Reserva r : reservasExistentes) {
-            // Verificar si hay superposición de horarios
-            if (tieneSuposicion(r.getHoraInicio(), r.getHoraFin(),
-                    reservaDTO.getHoraInicio(), reservaDTO.getHoraFin())) {
-                throw new BusinessException(
-                        "Ya existe una reserva en ese horario. " +
-                        "Cancha: " + reservaDTO.getCanchaId() +
-                        ", Fecha: " + reservaDTO.getFecha() +
-                        ", Horas: " + r.getHoraInicio() + "-" + r.getHoraFin()
-                );
-            }
+    List<Reserva> reservasExistentes = reservaRepository.findAll().stream()
+            .filter(r -> r.getCanchaId().equals(reservaDTO.getCanchaId()))
+            .filter(r -> Objects.equals(r.getFecha(), reservaDTO.getFecha()))
+            .filter(r -> !r.getEstado().equals("cancelada"))
+            .filter(r -> reservaIdExcluir == null || !r.getId().equals(reservaIdExcluir))
+            .toList();
+
+    for (Reserva r : reservasExistentes) {
+
+        if (tieneSuposicion(
+                r.getHoraInicio(),
+                r.getHoraFin(),
+                reservaDTO.getHoraInicio(),
+                reservaDTO.getHoraFin())) {
+
+            throw new BusinessException(
+                    "Ya existe una reserva en ese horario. " +
+                    "Cancha: " + reservaDTO.getCanchaId() +
+                    ", Fecha: " + reservaDTO.getFecha() +
+                    ", Horas: " + r.getHoraInicio() + "-" + r.getHoraFin()
+            );
         }
     }
+}
 
     /**
      * Verificar si dos horarios se superponen
      * Superposición: inicio1 < fin2 AND fin1 > inicio2
      */
-    private boolean tieneSuposicion(java.time.LocalTime inicio1, java.time.LocalTime fin1, 
-                                    java.time.LocalTime inicio2, java.time.LocalTime fin2) {
+    private boolean tieneSuposicion(java.time.LocalTime inicio1, java.time.LocalTime fin1,
+            java.time.LocalTime inicio2, java.time.LocalTime fin2) {
         return inicio1.isBefore(fin2) && fin1.isAfter(inicio2);
     }
 
     /**
      * VALIDACIÓN 5: Verificar capacidad disponible
      * 
-     * Capacidad disponible = capacidad total - reservas activas en misma cancha y fecha
+     * Capacidad disponible = capacidad total - reservas activas en misma cancha y
+     * fecha
      */
     private void validarCapacidadDisponible(Integer canchaId) {
         Integer capacidadTotal = canchaService.obtenerCapacidadCancha(canchaId);
@@ -204,9 +215,8 @@ public class ReservaService {
         if (reservasActivas >= capacidadTotal) {
             throw new BusinessException(
                     "No hay capacidad disponible en la cancha. " +
-                    "Capacidad: " + capacidadTotal + ", " +
-                    "Reservas activas: " + reservasActivas
-            );
+                            "Capacidad: " + capacidadTotal + ", " +
+                            "Reservas activas: " + reservasActivas);
         }
     }
 }

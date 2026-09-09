@@ -42,6 +42,22 @@ public class UsuarioService {
     public List<Usuario> listarUsuarios() {
         return usuarioRepository.findAll();
     }
+    /**
+ * Obtener todos los usuarios como DTOs.
+ * Nunca expone las contraseñas.
+ */
+public List<UsuarioDTO> listarUsuariosDTO() {
+
+    return usuarioRepository.findAll()
+            .stream()
+            .map(usuario -> new UsuarioDTO(
+                    usuario.getId(),
+                    usuario.getNombre(),
+                    usuario.getEmail(),
+                    usuario.getRol()
+            ))
+            .toList();
+}
 
     /**
      * Obtener usuario como DTO (sin contraseña)

@@ -18,7 +18,6 @@ public class AuthService {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
     }
-
     /**
      * Autentica un usuario verificando email y contraseña
      * 
@@ -32,7 +31,6 @@ public class AuthService {
             .filter(usuario -> passwordEncoder.matches(password, usuario.getPassword()))
             .orElse(null);
     }
-
     /**
      * Encripta una contraseña en texto plano
      * 
@@ -42,7 +40,6 @@ public class AuthService {
     public String encryptPassword(String password) {
         return passwordEncoder.encode(password);
     }
-
     /**
      * Verifica si una contraseña coincide con su hash
      * 

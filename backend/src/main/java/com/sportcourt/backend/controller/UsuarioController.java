@@ -9,8 +9,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Controller para gestionar usuarios
- * Utiliza UsuarioService para lógica de negocio
+ * Controller para gestionar usuarios.
+ *
+ * Importante:
+ * Nunca devuelve directamente la entidad Usuario,
+ * porque contiene información sensible como la contraseña.
  */
 @RestController
 @RequestMapping("/api")
@@ -23,20 +26,24 @@ public class UsuarioController {
     }
 
     /**
-     * Obtener todos los usuarios
+     * Obtener todos los usuarios sin exponer contraseñas.
      */
     @GetMapping("/usuarios")
-    public ResponseEntity<List<com.sportcourt.backend.model.Usuario>> listarUsuarios() {
-        List<com.sportcourt.backend.model.Usuario> usuarios = usuarioService.listarUsuarios();
+    public ResponseEntity<List<UsuarioDTO>> listarUsuarios() {
+
+        List<UsuarioDTO> usuarios = usuarioService.listarUsuariosDTO();
+
         return ResponseEntity.ok(usuarios);
     }
 
     /**
-     * Obtener un usuario por ID (sin contraseña)
+     * Obtener un usuario por ID sin contraseña.
      */
     @GetMapping("/usuarios/{id}")
     public ResponseEntity<UsuarioDTO> buscarUsuario(@PathVariable Integer id) {
+
         UsuarioDTO usuarioDTO = usuarioService.obtenerUsuarioDTO(id);
+
         return ResponseEntity.ok(usuarioDTO);
     }
 }
