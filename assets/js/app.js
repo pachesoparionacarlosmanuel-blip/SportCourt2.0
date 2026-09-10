@@ -69,13 +69,9 @@ if (loginForm) {
     try {
       const respuesta = await fetch(API_URL + '/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: email,
-          password: password
-        })
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
       });
 
       const usuario = await respuesta.json();
@@ -169,6 +165,30 @@ if (document.body.dataset.page === 'reservas' || document.body.dataset.page === 
 // Panel Admin: solo accesible para administradores
 if (document.body.dataset.page === 'admin' && getRole() !== 'admin') {
   window.location.href = 'index.html';
+}
+
+// Protección real del panel Admin mediante Spring Security
+if (document.body.dataset.page === 'admin') {
+    fetch(API_URL + '/usuarios', {
+        method: 'GET',
+        credentials: 'include'
+    })
+    .then(function (respuesta) {
+        if (respuesta.status === 403 || respuesta.status === 401) {
+            window.location.href = 'index.html';
+            return null;
+        }
+
+        if (!respuesta.ok) {
+            throw new Error('No se pudo verificar el acceso de administrador');
+        }
+
+        return respuesta.json();
+    })
+    .catch(function (error) {
+        console.error('Error verificando permisos de administrador:', error);
+        window.location.href = 'index.html';
+    });
 }
 
 // ---------------------------------------------
@@ -966,7 +986,7 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
       renderCourts();
     }
   });
-let classes = [];
+  let classes = [];
   let reservations = loadData('sportcourt_reservations', SEED_RESERVATIONS);
 
   const sportLabels = { fulbito: '⚽ Fulbito', futbol: '🏟️ Fútbol', tenis: '🎾 Tenis', piscina: '🏊 Piscina' };

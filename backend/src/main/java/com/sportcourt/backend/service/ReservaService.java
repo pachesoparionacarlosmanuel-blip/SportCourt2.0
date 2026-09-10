@@ -9,9 +9,7 @@ import com.sportcourt.backend.repository.ReservaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Servicio de negocio para reservas
@@ -58,7 +56,12 @@ public class ReservaService {
         validarNoDuplicada(reservaDTO, null);
 
         // Validación 5: Capacidad disponible
-        validarCapacidadDisponible(reservaDTO.getCanchaId());
+        validarCapacidadDisponible(
+                reservaDTO.getCanchaId(),
+                reservaDTO.getFecha(),
+                reservaDTO.getHoraInicio(),
+                reservaDTO.getHoraFin(),
+                null);
 
         // Crear y guardar
         Reserva reserva = new Reserva();
@@ -85,6 +88,13 @@ public class ReservaService {
 
         // Validar que no exista otra reserva en ese horario
         validarNoDuplicada(reservaDTO, id);
+
+        validarCapacidadDisponible(
+                reservaDTO.getCanchaId(),
+                reservaDTO.getFecha(),
+                reservaDTO.getHoraInicio(),
+                reservaDTO.getHoraFin(),
+                id);
 
         reserva.setUsuarioId(reservaDTO.getUsuarioId());
         reserva.setCanchaId(reservaDTO.getCanchaId());
@@ -116,9 +126,7 @@ public class ReservaService {
      */
     public List<Reserva> obtenerReservasDeUsuario(Integer usuarioId) {
         usuarioService.verificarUsuarioExiste(usuarioId);
-        return reservaRepository.findAll().stream()
-                .filter(r -> r.getUsuarioId().equals(usuarioId))
-                .toList();
+        return reservaRepository.findByUsuarioId(usuarioId);
     }
 
     /**
@@ -152,49 +160,30 @@ public class ReservaService {
     }
 
     /**
-     * VALIDACIÓN 4: Verificar NO hay reserva duplicada
-     * 
-     * Criterios de duplicado:
-     * - Mismo usuario
-     * - Misma cancha
-     * - Misma fecha
-     * - Horas superpuestas (inicio1 < fin2 AND fin1 > inicio2)
-     * - Estado NO cancelada
+     * VALIDACIÓN 4: Verificar que el usuario no tenga
+     * otra reserva superpuesta en la misma cancha y fecha.
      */
     private void validarNoDuplicada(ReservaDTO reservaDTO, Integer reservaIdExcluir) {
 
-    List<Reserva> reservasExistentes = reservaRepository.findAll().stream()
-            .filter(r -> r.getCanchaId().equals(reservaDTO.getCanchaId()))
-            .filter(r -> Objects.equals(r.getFecha(), reservaDTO.getFecha()))
-            .filter(r -> !r.getEstado().equals("cancelada"))
-            .filter(r -> reservaIdExcluir == null || !r.getId().equals(reservaIdExcluir))
-            .toList();
-
-    for (Reserva r : reservasExistentes) {
-
-        if (tieneSuposicion(
-                r.getHoraInicio(),
-                r.getHoraFin(),
+        List<Reserva> reservasDuplicadas = reservaRepository.buscarReservasDuplicadas(
+                reservaDTO.getUsuarioId(),
+                reservaDTO.getCanchaId(),
+                reservaDTO.getFecha(),
                 reservaDTO.getHoraInicio(),
-                reservaDTO.getHoraFin())) {
+                reservaDTO.getHoraFin(),
+                reservaIdExcluir);
+
+        if (!reservasDuplicadas.isEmpty()) {
+            Reserva reservaExistente = reservasDuplicadas.get(0);
 
             throw new BusinessException(
-                    "Ya existe una reserva en ese horario. " +
-                    "Cancha: " + reservaDTO.getCanchaId() +
-                    ", Fecha: " + reservaDTO.getFecha() +
-                    ", Horas: " + r.getHoraInicio() + "-" + r.getHoraFin()
-            );
+                    "El usuario ya tiene una reserva en ese horario. " +
+                            "Cancha: " + reservaDTO.getCanchaId() +
+                            ", Fecha: " + reservaDTO.getFecha() +
+                            ", Horas: " + reservaExistente.getHoraInicio() +
+                            "-" +
+                            reservaExistente.getHoraFin());
         }
-    }
-}
-
-    /**
-     * Verificar si dos horarios se superponen
-     * Superposición: inicio1 < fin2 AND fin1 > inicio2
-     */
-    private boolean tieneSuposicion(java.time.LocalTime inicio1, java.time.LocalTime fin1,
-            java.time.LocalTime inicio2, java.time.LocalTime fin2) {
-        return inicio1.isBefore(fin2) && fin1.isAfter(inicio2);
     }
 
     /**
@@ -203,13 +192,22 @@ public class ReservaService {
      * Capacidad disponible = capacidad total - reservas activas en misma cancha y
      * fecha
      */
-    private void validarCapacidadDisponible(Integer canchaId) {
+    private void validarCapacidadDisponible(
+            Integer canchaId,
+            java.time.LocalDate fecha,
+            java.time.LocalTime horaInicio,
+            java.time.LocalTime horaFin,
+            Integer reservaIdExcluir) {
+
         Integer capacidadTotal = canchaService.obtenerCapacidadCancha(canchaId);
 
-        // Contar reservas activas en esta cancha
-        long reservasActivas = reservaRepository.findAll().stream()
-                .filter(r -> r.getCanchaId().equals(canchaId))
-                .filter(r -> !r.getEstado().equals("cancelada"))
+        long reservasActivas = reservaRepository.buscarReservasSuperpuestas(
+                canchaId,
+                fecha,
+                horaInicio,
+                horaFin,
+                reservaIdExcluir).stream()
+                .filter(r -> !"cancelada".equalsIgnoreCase(r.getEstado()))
                 .count();
 
         if (reservasActivas >= capacidadTotal) {
