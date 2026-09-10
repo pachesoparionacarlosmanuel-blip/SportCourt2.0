@@ -745,6 +745,185 @@ public class ReservaServiceTest {
         verify(reservaRepository, never()).save(any(Reserva.class));
     }
 
+    @Test
+    @DisplayName("Una reserva cancelada no bloquea el mismo horario")
+    void reservaCanceladaNoBloqueaHorario() {
+
+        // Arrange
+        doNothing().when(usuarioService).verificarUsuarioExiste(2);
+        when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
+        when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
+
+        LocalDate fecha = LocalDate.of(2026, 9, 10);
+        LocalTime horaInicio = LocalTime.of(10, 0);
+        LocalTime horaFin = LocalTime.of(11, 0);
+
+        // El usuario 2 no tiene una reserva duplicada
+        when(reservaRepository.buscarReservasDuplicadas(
+                eq(2),
+                eq(1),
+                eq(fecha),
+                eq(horaInicio),
+                eq(horaFin),
+                isNull())).thenReturn(List.of());
+
+        // Existe una reserva en ese horario, pero está CANCELADA
+        Reserva reservaCancelada = new Reserva();
+        reservaCancelada.setId(1);
+        reservaCancelada.setUsuarioId(1);
+        reservaCancelada.setCanchaId(1);
+        reservaCancelada.setFecha(fecha);
+        reservaCancelada.setHoraInicio(horaInicio);
+        reservaCancelada.setHoraFin(horaFin);
+        reservaCancelada.setEstado("cancelada");
+
+        when(reservaRepository.buscarReservasSuperpuestas(
+                eq(1),
+                eq(fecha),
+                eq(horaInicio),
+                eq(horaFin),
+                isNull())).thenReturn(List.of(reservaCancelada));
+
+        when(reservaRepository.save(any(Reserva.class))).thenReturn(mockReserva);
+
+        ReservaDTO dto = new ReservaDTO();
+        dto.setUsuarioId(2);
+        dto.setCanchaId(1);
+        dto.setFecha(fecha);
+        dto.setHoraInicio(horaInicio);
+        dto.setHoraFin(horaFin);
+        dto.setEstado("activa");
+
+        // Act
+        Reserva resultado = reservaService.crearReserva(dto);
+
+        // Assert
+        assertNotNull(resultado);
+        verify(reservaRepository).save(any(Reserva.class));
+    }
+
+    @Test
+    @DisplayName("Actualizar una reserva no genera conflicto consigo misma")
+    void actualizarReservaNoGeneraConflictoConsigoMisma() {
+
+        // Arrange
+        Reserva reservaExistente = new Reserva();
+        reservaExistente.setId(1);
+        reservaExistente.setUsuarioId(1);
+        reservaExistente.setCanchaId(1);
+        reservaExistente.setFecha(LocalDate.of(2026, 9, 10));
+        reservaExistente.setHoraInicio(LocalTime.of(10, 0));
+        reservaExistente.setHoraFin(LocalTime.of(11, 0));
+        reservaExistente.setEstado("activa");
+
+        when(reservaRepository.findById(1))
+                .thenReturn(Optional.of(reservaExistente));
+
+        doNothing().when(usuarioService).verificarUsuarioExiste(1);
+        when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
+        when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
+
+        // No debe encontrar otra reserva duplicada.
+        // El ID 1 se excluye de la búsqueda.
+        when(reservaRepository.buscarReservasDuplicadas(
+                eq(1),
+                eq(1),
+                eq(LocalDate.of(2026, 9, 10)),
+                eq(LocalTime.of(10, 0)),
+                eq(LocalTime.of(11, 0)),
+                eq(1))).thenReturn(List.of());
+
+        // La propia reserva también se excluye de la búsqueda de capacidad.
+        when(reservaRepository.buscarReservasSuperpuestas(
+                eq(1),
+                eq(LocalDate.of(2026, 9, 10)),
+                eq(LocalTime.of(10, 0)),
+                eq(LocalTime.of(11, 0)),
+                eq(1))).thenReturn(List.of());
+
+        when(reservaRepository.save(any(Reserva.class)))
+                .thenReturn(reservaExistente);
+
+        ReservaDTO dto = new ReservaDTO();
+        dto.setUsuarioId(1);
+        dto.setCanchaId(1);
+        dto.setFecha(LocalDate.of(2026, 9, 10));
+        dto.setHoraInicio(LocalTime.of(10, 0));
+        dto.setHoraFin(LocalTime.of(11, 0));
+        dto.setEstado("activa");
+
+        // Act
+        Reserva resultado = reservaService.actualizarReserva(1, dto);
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals(1, resultado.getId());
+        verify(reservaRepository).save(any(Reserva.class));
+    }
+
+    @Test
+    @DisplayName("Actualizar una reserva rechaza horario ocupado por otra reserva")
+    void actualizarReservaRechazaHorarioOcupado() {
+
+        // Arrange
+        Reserva reservaActual = new Reserva();
+        reservaActual.setId(1);
+        reservaActual.setUsuarioId(1);
+        reservaActual.setCanchaId(1);
+        reservaActual.setFecha(LocalDate.of(2026, 9, 10));
+        reservaActual.setHoraInicio(LocalTime.of(10, 0));
+        reservaActual.setHoraFin(LocalTime.of(11, 0));
+        reservaActual.setEstado("activa");
+
+        when(reservaRepository.findById(1))
+                .thenReturn(Optional.of(reservaActual));
+
+        doNothing().when(usuarioService).verificarUsuarioExiste(1);
+        when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
+
+        Reserva otraReserva = new Reserva();
+        otraReserva.setId(2);
+        otraReserva.setUsuarioId(2);
+        otraReserva.setCanchaId(1);
+        otraReserva.setFecha(LocalDate.of(2026, 9, 10));
+        otraReserva.setHoraInicio(LocalTime.of(11, 0));
+        otraReserva.setHoraFin(LocalTime.of(12, 0));
+        otraReserva.setEstado("activa");
+
+        // El horario 11:30-12:30 se superpone con la reserva del usuario 2
+        when(reservaRepository.buscarReservasDuplicadas(
+                eq(1),
+                eq(1),
+                eq(LocalDate.of(2026, 9, 10)),
+                eq(LocalTime.of(11, 30)),
+                eq(LocalTime.of(12, 30)),
+                eq(1))).thenReturn(List.of());
+
+        when(reservaRepository.buscarReservasSuperpuestas(
+                eq(1),
+                eq(LocalDate.of(2026, 9, 10)),
+                eq(LocalTime.of(11, 30)),
+                eq(LocalTime.of(12, 30)),
+                eq(1))).thenReturn(List.of(otraReserva));
+
+        when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
+
+        ReservaDTO dto = new ReservaDTO();
+        dto.setUsuarioId(1);
+        dto.setCanchaId(1);
+        dto.setFecha(LocalDate.of(2026, 9, 10));
+        dto.setHoraInicio(LocalTime.of(11, 30));
+        dto.setHoraFin(LocalTime.of(12, 30));
+        dto.setEstado("activa");
+
+        // Act + Assert
+        assertThrows(
+                BusinessException.class,
+                () -> reservaService.actualizarReserva(1, dto));
+
+        verify(reservaRepository, never()).save(any(Reserva.class));
+    }
+
     // ==================== HELPER METHODS ====================
 
     private com.sportcourt.backend.model.Cancha createMockCancha() {
