@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SportCourt Perú - Mi Perfil</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SportCourt Perú - Mi Perfil</title>
+  <link rel="stylesheet" href="assets/css/app.min.css">
 </head>
+
 <body data-page="perfil">
 
   <nav class="navbar">
@@ -27,9 +29,9 @@
     </a>
   </nav>
 
-  <main class="content" style="max-width:820px;">
+  <main class="content max-w-3xl">
 
-    <h1 style="font-size:2rem;margin:0 0 28px;font-weight:700;">Mi Perfil</h1>
+    <h1 class="text-4xl font-bold mb-7">Mi Perfil</h1>
 
     <div class="perfil-card">
       <div class="perfil-identity">
@@ -58,6 +60,10 @@
       <div class="perfil-stat">
         <div class="p-stat-num">4.9 ★</div>
         <div class="p-stat-label">Mi calificación</div>
+      </div>
+      <div class="perfil-stat">
+        <div class="p-stat-num" id="perfil-clases-count">0</div>
+        <div class="p-stat-label">Clases inscritas</div>
       </div>
     </div>
 
@@ -100,6 +106,7 @@
 
   </main>
 
-  <script src="script.js"></script>
+  <script src="assets/js/app.js"></script>
 </body>
+
 </html>

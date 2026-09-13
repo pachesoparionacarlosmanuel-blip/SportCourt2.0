@@ -1,9 +1,9 @@
-name: Validar JavaScript
+name: Validar proyecto
 
-on:
-  pull_request:
-    branches:
-      - main
+on: [push, pull_request]
+
+permissions:
+  contents: read
 
 jobs:
   validar:
@@ -18,5 +18,11 @@ jobs:
         with:
           node-version: 20
 
+      - name: Instalar dependencias
+        run: npm ci
+
       - name: Revisar script.js
-        run: node --check script.js
+        run: npm test
+
+      - name: Compilar Tailwind CSS
+        run: npm run build:css

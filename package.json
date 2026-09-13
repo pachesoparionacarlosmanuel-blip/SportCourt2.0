@@ -1,0 +1,27 @@
+{
+  "name": "sportcourt2.0",
+  "version": "1.0.0",
+  "description": "",
+  "main": "script.js",
+  "scripts": {
+    "dev": "npx @tailwindcss/cli -i ./assets/css/app.css -o ./assets/css/app.min.css --watch",
+    "build:css": "npx @tailwindcss/cli -i ./assets/css/app.css -o ./assets/css/app.min.css --minify",
+    "test": "node --check assets/js/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pachesoparionacarlosmanuel-blip/SportCourt2.0.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/pachesoparionacarlosmanuel-blip/SportCourt2.0/issues"
+  },
+  "homepage": "https://github.com/pachesoparionacarlosmanuel-blip/SportCourt2.0#readme",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}
