@@ -38,14 +38,29 @@ public class ReservaController {
      * Obtener una reserva por ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Reserva> buscarReserva(@PathVariable Integer id) {
+    public ResponseEntity<Reserva> buscarReserva(
+            @PathVariable Integer id,
+            org.springframework.security.core.Authentication authentication) {
+
         Reserva reserva = reservaService.obtenerReserva(id);
+
+        Integer usuarioAutenticadoId = reservaService.obtenerUsuarioAutenticadoId();
+
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!esAdmin && !reserva.getUsuarioId().equals(usuarioAutenticadoId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "No tienes permiso para consultar esta reserva");
+        }
+
         return ResponseEntity.ok(reserva);
     }
 
     /**
      * Crear una nueva reserva
-     * Validaciones: usuario existe, cancha existe, horarios válidos, no duplicados, capacidad disponible
+     * Validaciones: usuario existe, cancha existe, horarios válidos, no duplicados,
+     * capacidad disponible
      */
     @PostMapping
     public ResponseEntity<Reserva> crearReserva(@Valid @RequestBody ReservaDTO reservaDTO) {

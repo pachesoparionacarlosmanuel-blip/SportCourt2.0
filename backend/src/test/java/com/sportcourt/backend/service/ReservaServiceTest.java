@@ -13,6 +13,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.AfterEach;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import com.sportcourt.backend.model.Usuario;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -76,13 +80,36 @@ public class ReservaServiceTest {
                 mockReserva.setEstado("activa");
         }
 
+        private void autenticarUsuario(Integer usuarioId, String email, String rol) {
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                email,
+                                null,
+                                java.util.List.of(
+                                                new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                                                "ROLE_" + rol)));
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                Usuario usuarioMock = new Usuario();
+                usuarioMock.setId(usuarioId);
+                usuarioMock.setEmail(email);
+
+                when(usuarioService.obtenerUsuarioPorEmail(email))
+                                .thenReturn(usuarioMock);
+        }
+
+        @AfterEach
+        void limpiarAutenticacion() {
+                SecurityContextHolder.clearContext();
+        }
+
         // ==================== TESTS EXITOSOS ====================
 
         @Test
         @DisplayName("✅ Crear reserva exitosa con todos los datos válidos")
         void crearReservaExitosa() {
                 // Arrange
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
+                autenticarUsuario(1, "usuario@test.com", "USER");
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(10); // 10 de capacidad
                 when(reservaRepository.buscarReservasDuplicadas(
@@ -110,7 +137,6 @@ public class ReservaServiceTest {
                 assertEquals(1, resultado.getUsuarioId());
                 assertEquals(1, resultado.getCanchaId());
                 assertEquals("activa", resultado.getEstado());
-                verify(usuarioService).verificarUsuarioExiste(1);
                 verify(canchaService).obtenerCancha(1);
                 verify(reservaRepository).save(any(Reserva.class));
         }
@@ -134,6 +160,8 @@ public class ReservaServiceTest {
         @DisplayName("✅ Cancelar reserva exitosamente")
         void cancelarReservaExitosa() {
                 // Arrange
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 when(reservaRepository.findById(1)).thenReturn(Optional.of(mockReserva));
                 when(reservaRepository.save(any(Reserva.class))).thenReturn(mockReserva);
 
@@ -145,14 +173,32 @@ public class ReservaServiceTest {
                 verify(reservaRepository).save(any(Reserva.class));
         }
 
+        @Test
+        @DisplayName("❌ Usuario no puede cancelar reserva de otro usuario")
+        void cancelarReservaDeOtroUsuario() {
+                // Arrange
+                autenticarUsuario(2, "otro@test.com", "USER");
+
+                when(reservaRepository.findById(1)).thenReturn(Optional.of(mockReserva));
+
+                // Act + Assert
+                assertThrows(
+                                org.springframework.security.access.AccessDeniedException.class,
+                                () -> reservaService.cancelarReserva(1));
+
+                verify(reservaRepository, never()).save(any(Reserva.class));
+        }
+
         // ==================== TESTS DE ERROR - VALIDACIÓN 1 ====================
 
         @Test
         @DisplayName("❌ VALIDACIÓN 1: Usuario NO existe")
         void crearReservaUsuarioNoExiste() {
                 // Arrange
-                doThrow(new ResourceNotFoundException("Usuario con ID 999 no encontrado"))
-                                .when(usuarioService).verificarUsuarioExiste(999);
+                autenticarUsuario(999, "usuario@test.com", "USER");
+
+                when(usuarioService.obtenerUsuarioPorEmail("usuario@test.com"))
+                                .thenThrow(new ResourceNotFoundException("Usuario con ID 999 no encontrado"));
 
                 ReservaDTO dtoConUsuarioInvalido = new ReservaDTO();
                 dtoConUsuarioInvalido.setUsuarioId(999);
@@ -167,7 +213,6 @@ public class ReservaServiceTest {
                         reservaService.crearReserva(dtoConUsuarioInvalido);
                 });
 
-                verify(usuarioService).verificarUsuarioExiste(999);
                 verify(reservaRepository, never()).save(any());
         }
 
@@ -177,7 +222,7 @@ public class ReservaServiceTest {
         @DisplayName("❌ VALIDACIÓN 2: Cancha NO existe")
         void crearReservaCanchaNoExiste() {
                 // Arrange
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
+                autenticarUsuario(1, "usuario@test.com", "USER");
                 when(canchaService.obtenerCancha(999))
                                 .thenThrow(new ResourceNotFoundException("Cancha con ID 999 no encontrada"));
 
@@ -204,7 +249,8 @@ public class ReservaServiceTest {
         @DisplayName("❌ VALIDACIÓN 3: Hora inicio >= Hora fin (igual)")
         void crearReservaHorasIguales() {
                 // Arrange
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
 
                 ReservaDTO dtoConHorasIguales = new ReservaDTO();
@@ -227,7 +273,8 @@ public class ReservaServiceTest {
         @DisplayName("❌ VALIDACIÓN 3: Hora inicio > Hora fin")
         void crearReservaHorasInvertidas() {
                 // Arrange
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
 
                 ReservaDTO dtoConHorasInvertidas = new ReservaDTO();
@@ -252,6 +299,8 @@ public class ReservaServiceTest {
         @DisplayName("❌ VALIDACIÓN 4: Reserva duplicada - horas se superponen COMPLETAMENTE")
         void crearReservaDuplicadaSuperposicionCompleta() {
                 // Arrange: Usuario ya tiene reserva 10:00-11:00
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Reserva reservaExistente = new Reserva();
                 reservaExistente.setUsuarioId(1);
                 reservaExistente.setCanchaId(1);
@@ -260,7 +309,6 @@ public class ReservaServiceTest {
                 reservaExistente.setHoraFin(LocalTime.of(11, 0));
                 reservaExistente.setEstado("activa");
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(reservaRepository.buscarReservasDuplicadas(
                                 eq(1),
@@ -291,6 +339,8 @@ public class ReservaServiceTest {
         @DisplayName("❌ VALIDACIÓN 4: Reserva duplicada - hora inicio se superpone")
         void crearReservaDuplicadaSuperposicionInicio() {
                 // Arrange: Usuario ya tiene reserva 10:00-11:00
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Reserva reservaExistente = new Reserva();
                 reservaExistente.setUsuarioId(1);
                 reservaExistente.setCanchaId(1);
@@ -299,7 +349,6 @@ public class ReservaServiceTest {
                 reservaExistente.setHoraFin(LocalTime.of(11, 0));
                 reservaExistente.setEstado("activa");
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(reservaRepository.buscarReservasDuplicadas(
                                 eq(1),
@@ -330,6 +379,8 @@ public class ReservaServiceTest {
         @DisplayName("✅ VALIDACIÓN 4: Reserva SIN superposición - hora fin exacta = nueva inicio")
         void crearReservaSinSuperposicion() {
                 // Arrange: Usuario ya tiene reserva 10:00-11:00
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Reserva reservaExistente = new Reserva();
                 reservaExistente.setUsuarioId(1);
                 reservaExistente.setCanchaId(1);
@@ -338,7 +389,6 @@ public class ReservaServiceTest {
                 reservaExistente.setHoraFin(LocalTime.of(11, 0));
                 reservaExistente.setEstado("activa");
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(10); // 10 de capacidad
                 when(reservaRepository.buscarReservasDuplicadas(
@@ -379,7 +429,8 @@ public class ReservaServiceTest {
         @DisplayName("❌ VALIDACIÓN 5: Capacidad no disponible")
         void crearReservaSinCapacidad() {
                 // Arrange: Cancha con capacidad 1
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha()); // capacidad 1
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
 
@@ -417,7 +468,8 @@ public class ReservaServiceTest {
         @DisplayName("✅ VALIDACIÓN 5: Capacidad disponible - reserva exitosa")
         void crearReservaConCapacidad() {
                 // Arrange: Cancha con capacidad 2
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(2); // 2 de capacidad
 
@@ -458,7 +510,8 @@ public class ReservaServiceTest {
         void dosUsuariosPuedenReservarSimultaneamente() {
 
                 // Arrange
-                doNothing().when(usuarioService).verificarUsuarioExiste(2);
+                autenticarUsuario(2, "usuario2@test.com", "USER");
+
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(2);
 
@@ -511,7 +564,8 @@ public class ReservaServiceTest {
         void reservaCanceladaNoBloqueaNuevaReserva() {
 
                 // Arrange
-                doNothing().when(usuarioService).verificarUsuarioExiste(2);
+                autenticarUsuario(2, "usuario2@test.com", "USER");
+
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
 
@@ -571,6 +625,8 @@ public class ReservaServiceTest {
                 // Arrange
                 Integer reservaId = 1;
 
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Reserva reservaExistente = new Reserva();
                 reservaExistente.setId(reservaId);
                 reservaExistente.setUsuarioId(1);
@@ -583,8 +639,6 @@ public class ReservaServiceTest {
                 when(reservaRepository.findById(reservaId))
                                 .thenReturn(Optional.of(reservaExistente));
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
-                when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
 
                 // La propia reserva se excluye mediante su ID.
@@ -629,6 +683,8 @@ public class ReservaServiceTest {
                 // Arrange
                 Integer reservaId = 1;
 
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Reserva reservaExistente = new Reserva();
                 reservaExistente.setId(reservaId);
                 reservaExistente.setUsuarioId(1);
@@ -641,7 +697,6 @@ public class ReservaServiceTest {
                 when(reservaRepository.findById(reservaId))
                                 .thenReturn(Optional.of(reservaExistente));
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
 
                 Reserva otraReserva = new Reserva();
@@ -684,6 +739,8 @@ public class ReservaServiceTest {
         void actualizarReservaRechazaHorarioSinCapacidad() {
 
                 // Arrange
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Integer reservaId = 1;
 
                 Reserva reservaExistente = new Reserva();
@@ -698,7 +755,6 @@ public class ReservaServiceTest {
                 when(reservaRepository.findById(reservaId))
                                 .thenReturn(Optional.of(reservaExistente));
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
 
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
@@ -750,7 +806,8 @@ public class ReservaServiceTest {
         void reservaCanceladaNoBloqueaHorario() {
 
                 // Arrange
-                doNothing().when(usuarioService).verificarUsuarioExiste(2);
+                autenticarUsuario(2, "usuario2@test.com", "USER");
+
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
 
@@ -807,6 +864,8 @@ public class ReservaServiceTest {
         void actualizarReservaNoGeneraConflictoConsigoMisma() {
 
                 // Arrange
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Reserva reservaExistente = new Reserva();
                 reservaExistente.setId(1);
                 reservaExistente.setUsuarioId(1);
@@ -819,7 +878,6 @@ public class ReservaServiceTest {
                 when(reservaRepository.findById(1))
                                 .thenReturn(Optional.of(reservaExistente));
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
 
@@ -866,6 +924,8 @@ public class ReservaServiceTest {
         void actualizarReservaRechazaHorarioOcupado() {
 
                 // Arrange
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Reserva reservaActual = new Reserva();
                 reservaActual.setId(1);
                 reservaActual.setUsuarioId(1);
@@ -878,7 +938,6 @@ public class ReservaServiceTest {
                 when(reservaRepository.findById(1))
                                 .thenReturn(Optional.of(reservaActual));
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
 
                 Reserva otraReserva = new Reserva();
@@ -931,7 +990,8 @@ public class ReservaServiceTest {
                 // Arrange
                 Integer reservaId = 1;
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
 
@@ -995,9 +1055,10 @@ public class ReservaServiceTest {
         void actualizarReservaDuplicada() {
 
                 // Arrange
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Integer reservaId = 1;
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
 
                 LocalDate fecha = LocalDate.of(2026, 9, 10);
@@ -1058,9 +1119,10 @@ public class ReservaServiceTest {
         void actualizarReservaSinCapacidad() {
 
                 // Arrange
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Integer reservaId = 1;
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
 
@@ -1130,9 +1192,10 @@ public class ReservaServiceTest {
         void actualizarReservaConCapacidad() {
 
                 // Arrange
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Integer reservaId = 1;
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
 
@@ -1196,7 +1259,8 @@ public class ReservaServiceTest {
         void crearReservaConReservaCancelada() {
 
                 // Arrange
-                doNothing().when(usuarioService).verificarUsuarioExiste(2);
+                autenticarUsuario(2, "usuario2@test.com", "USER");
+
                 when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
                 when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
 
@@ -1248,13 +1312,14 @@ public class ReservaServiceTest {
         void actualizarReservaSinDuplicarse() {
 
                 // Arrange
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Integer reservaId = 1;
 
                 LocalDate fecha = LocalDate.of(2026, 9, 10);
                 LocalTime horaInicio = LocalTime.of(10, 0);
                 LocalTime horaFin = LocalTime.of(11, 0);
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
                 when(canchaService.obtenerCancha(1))
                                 .thenReturn(createMockCancha());
 
@@ -1317,13 +1382,13 @@ public class ReservaServiceTest {
         void actualizarReservaGeneraDuplicidad() {
 
                 // Arrange
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Integer reservaId = 1;
 
                 LocalDate fecha = LocalDate.of(2026, 9, 10);
                 LocalTime horaInicio = LocalTime.of(10, 0);
                 LocalTime horaFin = LocalTime.of(11, 0);
-
-                doNothing().when(usuarioService).verificarUsuarioExiste(1);
 
                 when(canchaService.obtenerCancha(1))
                                 .thenReturn(createMockCancha());
@@ -1382,6 +1447,15 @@ public class ReservaServiceTest {
         void listarReservas() {
 
                 // Arrange
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                "usuario@test.com",
+                                null,
+                                java.util.List.of(
+                                                new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                                                "ROLE_ADMIN")));
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+
                 Reserva reserva1 = new Reserva();
                 reserva1.setId(1);
                 reserva1.setUsuarioId(1);
@@ -1422,6 +1496,8 @@ public class ReservaServiceTest {
                 // Arrange
                 Integer usuarioId = 1;
 
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
                 Reserva reserva1 = new Reserva();
                 reserva1.setId(1);
                 reserva1.setUsuarioId(usuarioId);
@@ -1440,8 +1516,6 @@ public class ReservaServiceTest {
                 reserva2.setHoraFin(LocalTime.of(13, 0));
                 reserva2.setEstado("activa");
 
-                doNothing().when(usuarioService).verificarUsuarioExiste(usuarioId);
-
                 when(reservaRepository.findByUsuarioId(usuarioId))
                                 .thenReturn(List.of(reserva1, reserva2));
 
@@ -1454,7 +1528,6 @@ public class ReservaServiceTest {
                 assertEquals(usuarioId, resultado.get(0).getUsuarioId());
                 assertEquals(usuarioId, resultado.get(1).getUsuarioId());
 
-                verify(usuarioService).verificarUsuarioExiste(usuarioId);
                 verify(reservaRepository).findByUsuarioId(usuarioId);
         }
 
@@ -1486,23 +1559,23 @@ public class ReservaServiceTest {
         }
 
         @Test
-@DisplayName("No permite eliminar una reserva que no existe")
-void eliminarReservaNoExiste() {
+        @DisplayName("No permite eliminar una reserva que no existe")
+        void eliminarReservaNoExiste() {
 
-    // Arrange
-    Integer reservaId = 999;
+                // Arrange
+                Integer reservaId = 999;
 
-    when(reservaRepository.findById(reservaId))
-            .thenReturn(Optional.empty());
+                when(reservaRepository.findById(reservaId))
+                                .thenReturn(Optional.empty());
 
-    // Act & Assert
-    assertThrows(ResourceNotFoundException.class, () -> {
-        reservaService.eliminarReserva(reservaId);
-    });
+                // Act & Assert
+                assertThrows(ResourceNotFoundException.class, () -> {
+                        reservaService.eliminarReserva(reservaId);
+                });
 
-    verify(reservaRepository).findById(reservaId);
-    verify(reservaRepository, never()).deleteById(reservaId);
-}
+                verify(reservaRepository).findById(reservaId);
+                verify(reservaRepository, never()).deleteById(reservaId);
+        }
 
         // ==================== HELPER METHODS ====================
 

@@ -6,8 +6,11 @@ import com.sportcourt.backend.exception.ResourceNotFoundException;
 import com.sportcourt.backend.model.Reserva;
 import com.sportcourt.backend.repository.ReservaRepository;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 
@@ -43,8 +46,10 @@ public class ReservaService {
      * 5. Capacidad disponible
      */
     public Reserva crearReserva(ReservaDTO reservaDTO) {
-        // Validación 1: Usuario existe
-        usuarioService.verificarUsuarioExiste(reservaDTO.getUsuarioId());
+
+        // Usuario autenticado: no confiar en el usuarioId enviado por el cliente
+        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+        reservaDTO.setUsuarioId(usuarioAutenticadoId);
 
         // Validación 2: Cancha existe
         canchaService.obtenerCancha(reservaDTO.getCanchaId());
@@ -80,11 +85,18 @@ public class ReservaService {
      */
     public Reserva actualizarReserva(Integer id, ReservaDTO reservaDTO) {
         Reserva reserva = obtenerReserva(id);
+        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+
+        if (!reserva.getUsuarioId().equals(usuarioAutenticadoId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "No tienes permiso para modificar esta reserva");
+        }
 
         // Validaciones similares a crear (excepto duplicados con ella misma)
-        usuarioService.verificarUsuarioExiste(reservaDTO.getUsuarioId());
         canchaService.obtenerCancha(reservaDTO.getCanchaId());
         validarHorarios(reservaDTO.getHoraInicio(), reservaDTO.getHoraFin());
+
+        reservaDTO.setUsuarioId(usuarioAutenticadoId);
 
         // Validar que no exista otra reserva en ese horario
         validarNoDuplicada(reservaDTO, id);
@@ -96,7 +108,7 @@ public class ReservaService {
                 reservaDTO.getHoraFin(),
                 id);
 
-        reserva.setUsuarioId(reservaDTO.getUsuarioId());
+        reserva.setUsuarioId(usuarioAutenticadoId);
         reserva.setCanchaId(reservaDTO.getCanchaId());
         reserva.setFecha(reservaDTO.getFecha());
         reserva.setHoraInicio(reservaDTO.getHoraInicio());
@@ -118,15 +130,28 @@ public class ReservaService {
      * Listar todas las reservas
      */
     public List<Reserva> listarReservas() {
+    Authentication authentication =
+            SecurityContextHolder.getContext().getAuthentication();
+
+    boolean esAdmin = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+    if (esAdmin) {
         return reservaRepository.findAll();
     }
+
+    Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+
+    return reservaRepository.findByUsuarioId(usuarioAutenticadoId);
+}
 
     /**
      * Obtener reservas de un usuario
      */
     public List<Reserva> obtenerReservasDeUsuario(Integer usuarioId) {
-        usuarioService.verificarUsuarioExiste(usuarioId);
-        return reservaRepository.findByUsuarioId(usuarioId);
+        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+
+        return reservaRepository.findByUsuarioId(usuarioAutenticadoId);
     }
 
     /**
@@ -134,6 +159,14 @@ public class ReservaService {
      */
     public Reserva cancelarReserva(Integer id) {
         Reserva reserva = obtenerReserva(id);
+
+        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+
+        if (!reserva.getUsuarioId().equals(usuarioAutenticadoId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "No tienes permiso para cancelar esta reserva");
+        }
+
         reserva.setEstado("cancelada");
         return reservaRepository.save(reserva);
     }
@@ -216,5 +249,23 @@ public class ReservaService {
                             "Capacidad: " + capacidadTotal + ", " +
                             "Reservas activas: " + reservasActivas);
         }
+
     }
+
+    /**
+     * Obtiene el ID del usuario autenticado a partir de la sesión.
+     * No confía en el usuarioId enviado por el cliente.
+     */
+    public Integer obtenerUsuarioAutenticadoId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new SecurityException("Usuario no autenticado");
+        }
+
+        String email = authentication.getName();
+
+        return usuarioService.obtenerUsuarioPorEmail(email).getId();
+    }
+
 }

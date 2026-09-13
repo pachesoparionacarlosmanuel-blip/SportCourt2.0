@@ -1,7 +1,9 @@
 const API_URL = 'http://localhost:8080/api';
 async function cargarCanchasDesdeAPI() {
   try {
-    const respuesta = await fetch(API_URL + '/canchas');
+    const respuesta = await fetch(API_URL + '/canchas', {
+      credentials: 'include'
+    });
 
     if (!respuesta.ok) {
       throw new Error('Error HTTP: ' + respuesta.status);
@@ -23,6 +25,7 @@ async function crearReservaEnBackend(reserva) {
   try {
     const respuesta = await fetch(API_URL + '/reservas', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },
@@ -54,6 +57,14 @@ function getUserName() {
   return localStorage.getItem('sportcourt_user_name') || 'Invitado';
 }
 
+function getCsrfToken() {
+  const cookie = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('XSRF-TOKEN='));
+
+  return cookie ? decodeURIComponent(cookie.split('=')[1]) : null;
+}
+
 // ---------------------------------------------
 // Login: asigna rol según el correo y redirige
 // admin... -> Administrador | cualquier otro -> Usuario
@@ -70,7 +81,10 @@ if (loginForm) {
       const respuesta = await fetch(API_URL + '/login', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': getCsrfToken()
+        },
         body: JSON.stringify({ email: email, password: password })
       });
 
@@ -169,25 +183,25 @@ if (document.body.dataset.page === 'admin' && getRole() !== 'admin') {
 
 // Protección real del panel Admin mediante Spring Security
 if (document.body.dataset.page === 'admin') {
-    fetch(API_URL + '/usuarios', {
-        method: 'GET',
-        credentials: 'include'
-    })
+  fetch(API_URL + '/usuarios', {
+    method: 'GET',
+    credentials: 'include'
+  })
     .then(function (respuesta) {
-        if (respuesta.status === 403 || respuesta.status === 401) {
-            window.location.href = 'index.html';
-            return null;
-        }
+      if (respuesta.status === 403 || respuesta.status === 401) {
+        window.location.href = 'index.html';
+        return null;
+      }
 
-        if (!respuesta.ok) {
-            throw new Error('No se pudo verificar el acceso de administrador');
-        }
+      if (!respuesta.ok) {
+        throw new Error('No se pudo verificar el acceso de administrador');
+      }
 
-        return respuesta.json();
+      return respuesta.json();
     })
     .catch(function (error) {
-        console.error('Error verificando permisos de administrador:', error);
-        window.location.href = 'index.html';
+      console.error('Error verificando permisos de administrador:', error);
+      window.location.href = 'index.html';
     });
 }
 
@@ -325,7 +339,9 @@ function getCourts() {
 // =============================================
 async function cargarClasesDesdeAPI() {
   try {
-    const respuesta = await fetch(API_URL + '/clases');
+    const respuesta = await fetch(API_URL + '/clases', {
+      credentials: 'include'
+    });
 
     if (!respuesta.ok) {
       throw new Error('Error HTTP clases: ' + respuesta.status);
@@ -348,7 +364,9 @@ let inscripcionesDesdeAPI = [];
 
 async function cargarInscripcionesDesdeAPI() {
   try {
-    const respuesta = await fetch(API_URL + '/inscripciones');
+    const respuesta = await fetch(API_URL + '/inscripciones', {
+      credentials: 'include'
+    });
 
     if (!respuesta.ok) {
       throw new Error('HTTP ' + respuesta.status);
@@ -430,13 +448,17 @@ function getReservations() {
 async function cargarReservasDesdeAPI() {
   try {
     // Obtener reservas desde el backend
-    const respuestaReservas = await fetch(API_URL + '/reservas');
+    const respuestaReservas = await fetch(API_URL + '/reservas', {
+      credentials: 'include'
+    });
     if (!respuestaReservas.ok) {
       throw new Error('Error HTTP reservas: ' + respuestaReservas.status);
     }
     const reservas = await respuestaReservas.json();
     // Obtener canchas desde el backend
-    const respuestaCanchas = await fetch(API_URL + '/canchas');
+    const respuestaCanchas = await fetch(API_URL + '/canchas', {
+      credentials: 'include'
+    });
     if (!respuestaCanchas.ok) {
       throw new Error('Error HTTP canchas: ' + respuestaCanchas.status);
     }
@@ -558,6 +580,7 @@ if (reservationForm) {
     });
     fetch(API_URL + '/reservas', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },
@@ -641,7 +664,8 @@ if (reservasList) {
     if (cancel) {
       const id = cancel.dataset.id;
       fetch(API_URL + '/reservas/' + id + '/cancelar', {
-        method: 'PUT'
+        method: 'PUT',
+        credentials: 'include'
       })
         .then(function (response) {
           if (!response.ok) {
@@ -688,7 +712,9 @@ async function cargarEstadoInscripciones() {
   }
 
   try {
-    const respuesta = await fetch(API_URL + '/inscripciones');
+    const respuesta = await fetch(API_URL + '/inscripciones', {
+      credentials: 'include'
+    });
 
     if (!respuesta.ok) {
       throw new Error('Error HTTP inscripciones: ' + respuesta.status);
@@ -742,6 +768,7 @@ document.querySelectorAll('.enroll-btn').forEach(function (btn) {
     try {
       const respuesta = await fetch(API_URL + '/inscripciones', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -794,7 +821,9 @@ async function cargarMisInscripciones() {
   }
 
   try {
-    const respuesta = await fetch(API_URL + '/inscripciones');
+    const respuesta = await fetch(API_URL + '/inscripciones', {
+      credentials: 'include'
+    });
 
     if (!respuesta.ok) {
       throw new Error('Error HTTP: ' + respuesta.status);
@@ -862,7 +891,9 @@ if (document.body.dataset.page === 'perfil') {
     if (profileSpent) profileSpent.textContent = 'S/ ' + totalSpent;
     const profileClasses = document.querySelector('#perfil-clases-count');
 
-    fetch(API_URL + '/inscripciones')
+    fetch(API_URL + '/inscripciones', {
+      credentials: 'include'
+    })
       .then(function (respuesta) {
         if (!respuesta.ok) {
           throw new Error('Error HTTP: ' + respuesta.status);
@@ -1122,6 +1153,7 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
 
         const respuesta = await fetch(url, {
           method: metodo,
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json'
           },
@@ -1220,6 +1252,7 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
 
         const respuesta = await fetch(url, {
           method: method,
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json'
           },
@@ -1309,7 +1342,8 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
 
         try {
           const respuesta = await fetch(API_URL + '/canchas/' + id, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
           });
 
           if (!respuesta.ok) {
@@ -1343,7 +1377,8 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
 
         try {
           const respuesta = await fetch(API_URL + '/clases/' + id, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
           });
 
           if (!respuesta.ok) {

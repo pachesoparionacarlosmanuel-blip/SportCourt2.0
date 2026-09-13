@@ -38,10 +38,25 @@ public class InscripcionController {
      * Obtener una inscripción por ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Inscripcion> buscarInscripcion(@PathVariable Integer id) {
-        Inscripcion inscripcion = inscripcionService.obtenerInscripcion(id);
-        return ResponseEntity.ok(inscripcion);
+public ResponseEntity<Inscripcion> buscarInscripcion(
+        @PathVariable Integer id,
+        org.springframework.security.core.Authentication authentication) {
+
+    Inscripcion inscripcion = inscripcionService.obtenerInscripcion(id);
+
+    Integer usuarioAutenticadoId =
+            inscripcionService.obtenerUsuarioAutenticadoId();
+
+    boolean esAdmin = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+    if (!esAdmin && !inscripcion.getUsuarioId().equals(usuarioAutenticadoId)) {
+        throw new org.springframework.security.access.AccessDeniedException(
+                "No tienes permiso para consultar esta inscripción");
     }
+
+    return ResponseEntity.ok(inscripcion);
+}
 
     /**
      * Crear una nueva inscripción

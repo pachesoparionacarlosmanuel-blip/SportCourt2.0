@@ -7,6 +7,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 public class SecurityConfig {
@@ -26,10 +27,11 @@ public class SecurityConfig {
         public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
                 http
-                                // Desactivamos CSRF porque actualmente trabajamos con API REST.
-                                .cors(cors -> {
-                                })
-                                .csrf(csrf -> csrf.disable())
+                                // Protección CSRF para la autenticación basada en sesión.
+                                .csrf(csrf -> csrf
+                                                .csrfTokenRepository(
+                                                                org.springframework.security.web.csrf.CookieCsrfTokenRepository
+                                                                                .withHttpOnlyFalse()))
 
                                 .securityContext(securityContext -> securityContext.securityContextRepository(
                                                 new HttpSessionSecurityContextRepository()))
@@ -37,7 +39,8 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
 
                                                 // Login público.
-                                                .requestMatchers("/api/login").permitAll()
+                                                .requestMatchers("/api/login", "/api/csrf").permitAll()
+                                                .requestMatchers("/api/csrf").permitAll()
 
                                                 // Archivos del frontend.
                                                 .requestMatchers(
@@ -55,6 +58,28 @@ public class SecurityConfig {
                                                 // Usuarios administradores
                                                 .requestMatchers(
                                                                 "/api/usuarios/**")
+                                                .hasRole("ADMIN")
+
+                                                .requestMatchers(org.springframework.http.HttpMethod.DELETE,
+                                                                "/api/reservas/**")
+                                                .hasRole("ADMIN")
+
+                                                .requestMatchers(
+                                                                HttpMethod.POST,
+                                                                "/api/canchas/**",
+                                                                "/api/clases/**")
+                                                .hasRole("ADMIN")
+
+                                                .requestMatchers(
+                                                                HttpMethod.PUT,
+                                                                "/api/canchas/**",
+                                                                "/api/clases/**")
+                                                .hasRole("ADMIN")
+
+                                                .requestMatchers(
+                                                                HttpMethod.DELETE,
+                                                                "/api/canchas/**",
+                                                                "/api/clases/**")
                                                 .hasRole("ADMIN")
 
                                                 .requestMatchers(

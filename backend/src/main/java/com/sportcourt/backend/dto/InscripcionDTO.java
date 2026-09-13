@@ -10,8 +10,6 @@ public class InscripcionDTO {
 
     private Integer id;
 
-    @NotNull(message = "El ID del usuario es requerido")
-    @Positive(message = "El ID del usuario debe ser un número positivo")
     private Integer usuarioId;
 
     @NotNull(message = "El ID de la clase es requerido")

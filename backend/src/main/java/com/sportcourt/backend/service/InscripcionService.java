@@ -8,6 +8,8 @@ import com.sportcourt.backend.repository.InscripcionRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 
@@ -24,8 +26,8 @@ public class InscripcionService {
     private final ClaseService claseService;
 
     public InscripcionService(InscripcionRepository inscripcionRepository,
-                              UsuarioService usuarioService,
-                              ClaseService claseService) {
+            UsuarioService usuarioService,
+            ClaseService claseService) {
         this.inscripcionRepository = inscripcionRepository;
         this.usuarioService = usuarioService;
         this.claseService = claseService;
@@ -41,8 +43,12 @@ public class InscripcionService {
      * 4. Hay cupos disponibles
      */
     public Inscripcion crearInscripcion(InscripcionDTO inscripcionDTO) {
-        // Validación 1: Usuario existe
-        usuarioService.verificarUsuarioExiste(inscripcionDTO.getUsuarioId());
+
+        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+        inscripcionDTO.setUsuarioId(usuarioAutenticadoId);
+
+        // Usuario autenticado: no confiar en el usuarioId enviado por el cliente
+        // El ID ya fue obtenido desde la sesión.
 
         // Validación 2: Clase existe
         claseService.obtenerClase(inscripcionDTO.getClaseId());
@@ -75,7 +81,20 @@ public class InscripcionService {
      * Listar todas las inscripciones
      */
     public List<Inscripcion> listarInscripciones() {
-        return inscripcionRepository.findAll();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (esAdmin) {
+            return inscripcionRepository.findAll();
+        }
+
+        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+
+        return inscripcionRepository.findAll().stream()
+                .filter(i -> i.getUsuarioId().equals(usuarioAutenticadoId))
+                .toList();
     }
 
     /**
@@ -93,7 +112,21 @@ public class InscripcionService {
      */
     public Inscripcion cancelarInscripcion(Integer id) {
         Inscripcion inscripcion = obtenerInscripcion(id);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+
+        if (!esAdmin && !inscripcion.getUsuarioId().equals(usuarioAutenticadoId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "No tienes permiso para cancelar esta inscripción");
+        }
+
         inscripcion.setEstado("cancelada");
+
         return inscripcionRepository.save(inscripcion);
     }
 
@@ -101,7 +134,20 @@ public class InscripcionService {
      * Eliminar una inscripción
      */
     public void eliminarInscripcion(Integer id) {
-        obtenerInscripcion(id);  // Verifica que existe
+        Inscripcion inscripcion = obtenerInscripcion(id);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+
+        if (!esAdmin && !inscripcion.getUsuarioId().equals(usuarioAutenticadoId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "No tienes permiso para eliminar esta inscripción");
+        }
+
         inscripcionRepository.deleteById(id);
     }
 
@@ -124,8 +170,7 @@ public class InscripcionService {
         if (yaInscrito) {
             throw new BusinessException(
                     "El usuario ya está inscrito en esta clase. " +
-                    "Clase ID: " + inscripcionDTO.getClaseId()
-            );
+                            "Clase ID: " + inscripcionDTO.getClaseId());
         }
     }
 
@@ -146,9 +191,24 @@ public class InscripcionService {
         if (inscripcionesActivas >= cuposTotales) {
             throw new BusinessException(
                     "No hay cupos disponibles en la clase. " +
-                    "Cupos: " + cuposTotales + ", " +
-                    "Inscripciones activas: " + inscripcionesActivas
-            );
+                            "Cupos: " + cuposTotales + ", " +
+                            "Inscripciones activas: " + inscripcionesActivas);
         }
+    }
+
+    /**
+     * Obtiene el ID del usuario autenticado a partir de la sesión.
+     * No confía en el usuarioId enviado por el cliente.
+     */
+    public Integer obtenerUsuarioAutenticadoId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new SecurityException("Usuario no autenticado");
+        }
+
+        String email = authentication.getName();
+
+        return usuarioService.obtenerUsuarioPorEmail(email).getId();
     }
 }

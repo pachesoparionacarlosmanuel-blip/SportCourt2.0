@@ -26,6 +26,7 @@ public class UsuarioService {
 
     /**
      * Obtener usuario por ID
+     *
      * @param id ID del usuario
      * @return Usuario encontrado
      * @throws ResourceNotFoundException si no existe
@@ -36,31 +37,46 @@ public class UsuarioService {
     }
 
     /**
+     * Obtener usuario por email.
+     * Se utiliza para identificar al usuario autenticado.
+     *
+     * @param email Email del usuario autenticado
+     * @return Usuario encontrado
+     * @throws ResourceNotFoundException si no existe
+     */
+    public Usuario obtenerUsuarioPorEmail(String email) {
+        return usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+    }
+
+    /**
      * Listar todos los usuarios
+     *
      * @return Lista de usuarios
      */
     public List<Usuario> listarUsuarios() {
         return usuarioRepository.findAll();
     }
-    /**
- * Obtener todos los usuarios como DTOs.
- * Nunca expone las contraseñas.
- */
-public List<UsuarioDTO> listarUsuariosDTO() {
 
-    return usuarioRepository.findAll()
-            .stream()
-            .map(usuario -> new UsuarioDTO(
-                    usuario.getId(),
-                    usuario.getNombre(),
-                    usuario.getEmail(),
-                    usuario.getRol()
-            ))
-            .toList();
-}
+    /**
+     * Obtener todos los usuarios como DTOs.
+     * Nunca expone las contraseñas.
+     */
+    public List<UsuarioDTO> listarUsuariosDTO() {
+
+        return usuarioRepository.findAll()
+                .stream()
+                .map(usuario -> new UsuarioDTO(
+                        usuario.getId(),
+                        usuario.getNombre(),
+                        usuario.getEmail(),
+                        usuario.getRol()))
+                .toList();
+    }
 
     /**
      * Obtener usuario como DTO (sin contraseña)
+     *
      * @param id ID del usuario
      * @return UsuarioDTO sin campos sensibles
      */
@@ -70,12 +86,12 @@ public List<UsuarioDTO> listarUsuariosDTO() {
                 usuario.getId(),
                 usuario.getNombre(),
                 usuario.getEmail(),
-                usuario.getRol()
-        );
+                usuario.getRol());
     }
 
     /**
      * Verificar que un usuario existe
+     *
      * @param usuarioId ID del usuario
      * @throws ResourceNotFoundException si no existe
      */

@@ -3,9 +3,14 @@ package com.sportcourt.backend.service;
 import com.sportcourt.backend.dto.InscripcionDTO;
 import com.sportcourt.backend.exception.BusinessException;
 import com.sportcourt.backend.exception.ResourceNotFoundException;
+import com.sportcourt.backend.model.Clase;
 import com.sportcourt.backend.model.Inscripcion;
 import com.sportcourt.backend.repository.InscripcionRepository;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.sportcourt.backend.model.Usuario;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +39,23 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("InscripcionService - Tests Unitarios")
 public class InscripcionServiceTest {
+    private void autenticarUsuario(Integer usuarioId, String email, String rol) {
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                email,
+                null,
+                java.util.List.of(
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                "ROLE_" + rol)));
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        Usuario usuarioMock = new Usuario();
+        usuarioMock.setId(usuarioId);
+        usuarioMock.setEmail(email);
+
+        when(usuarioService.obtenerUsuarioPorEmail(email))
+                .thenReturn(usuarioMock);
+    }
 
     @Mock
     private InscripcionRepository inscripcionRepository;
@@ -49,6 +71,11 @@ public class InscripcionServiceTest {
 
     private InscripcionDTO validInscripcionDTO;
     private Inscripcion mockInscripcion;
+
+    @AfterEach
+    void limpiarAutenticacion() {
+        SecurityContextHolder.clearContext();
+    }
 
     @BeforeEach
     void setUp() {
@@ -66,6 +93,7 @@ public class InscripcionServiceTest {
         mockInscripcion.setClaseId(1);
         mockInscripcion.setFecha(LocalDate.of(2026, 9, 10));
         mockInscripcion.setEstado("activa");
+
     }
 
     // ==================== TESTS EXITOSOS ====================
@@ -73,8 +101,10 @@ public class InscripcionServiceTest {
     @Test
     @DisplayName("✅ Crear inscripción exitosa con todos los datos válidos")
     void crearInscripcionExitosa() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
         // Arrange
-        doNothing().when(usuarioService).verificarUsuarioExiste(1);
         when(claseService.obtenerClase(1)).thenReturn(createMockClase());
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(10); // 10 cupos disponibles
         when(inscripcionRepository.findAll()).thenReturn(List.of()); // No hay inscripciones existentes
@@ -89,7 +119,6 @@ public class InscripcionServiceTest {
         assertEquals(1, resultado.getUsuarioId());
         assertEquals(1, resultado.getClaseId());
         assertEquals("activa", resultado.getEstado());
-        verify(usuarioService).verificarUsuarioExiste(1);
         verify(claseService).obtenerClase(1);
         verify(inscripcionRepository).save(any(Inscripcion.class));
     }
@@ -112,6 +141,9 @@ public class InscripcionServiceTest {
     @Test
     @DisplayName("✅ Cancelar inscripción exitosamente")
     void cancelarInscripcionExitosa() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
         // Arrange
         when(inscripcionRepository.findById(1)).thenReturn(Optional.of(mockInscripcion));
         when(inscripcionRepository.save(any(Inscripcion.class))).thenReturn(mockInscripcion);
@@ -127,6 +159,9 @@ public class InscripcionServiceTest {
     @Test
     @DisplayName("✅ Listar todas las inscripciones")
     void listarInscripciones() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
         // Arrange
         List<Inscripcion> inscripciones = List.of(mockInscripcion);
         when(inscripcionRepository.findAll()).thenReturn(inscripciones);
@@ -143,25 +178,29 @@ public class InscripcionServiceTest {
     // ==================== TESTS DE ERROR - VALIDACIÓN 1 ====================
 
     @Test
-    @DisplayName("❌ VALIDACIÓN 1: Usuario NO existe")
+    @DisplayName("🔒 SEGURIDAD: No permite elegir otro usuario mediante usuarioId")
     void crearInscripcionUsuarioNoExiste() {
-        // Arrange
-        doThrow(new ResourceNotFoundException("Usuario con ID 999 no encontrado"))
-                .when(usuarioService).verificarUsuarioExiste(999);
 
-        InscripcionDTO dtoConUsuarioInvalido = new InscripcionDTO();
-        dtoConUsuarioInvalido.setUsuarioId(999);
-        dtoConUsuarioInvalido.setClaseId(1);
-        dtoConUsuarioInvalido.setFecha(LocalDate.of(2026, 9, 10));
-        dtoConUsuarioInvalido.setEstado("activa");
+        autenticarUsuario(1, "usuario@test.com", "USER");
 
-        // Act & Assert
-        assertThrows(ResourceNotFoundException.class, () -> {
-            inscripcionService.crearInscripcion(dtoConUsuarioInvalido);
-        });
+        when(claseService.obtenerCuposDisponibles(1)).thenReturn(10);
 
-        verify(usuarioService).verificarUsuarioExiste(999);
-        verify(inscripcionRepository, never()).save(any());
+        when(inscripcionRepository.save(any(Inscripcion.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+        InscripcionDTO dto = new InscripcionDTO();
+        dto.setUsuarioId(999); // Intento de suplantar a otro usuario
+        dto.setClaseId(1);
+        dto.setFecha(LocalDate.of(2026, 9, 10));
+        dto.setEstado("activa");
+
+        Inscripcion resultado = inscripcionService.crearInscripcion(dto);
+
+        // El usuarioId enviado por el cliente debe ser ignorado
+        assertEquals(1, resultado.getUsuarioId());
+
+        // Se debe guardar la inscripción asociada al usuario autenticado
+        verify(inscripcionRepository).save(any(Inscripcion.class));
     }
 
     // ==================== TESTS DE ERROR - VALIDACIÓN 2 ====================
@@ -169,8 +208,10 @@ public class InscripcionServiceTest {
     @Test
     @DisplayName("❌ VALIDACIÓN 2: Clase NO existe")
     void crearInscripcionClaseNoExiste() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
         // Arrange
-        doNothing().when(usuarioService).verificarUsuarioExiste(1);
         when(claseService.obtenerClase(999))
                 .thenThrow(new ResourceNotFoundException("Clase con ID 999 no encontrada"));
 
@@ -194,13 +235,15 @@ public class InscripcionServiceTest {
     @Test
     @DisplayName("❌ VALIDACIÓN 3: Inscripción duplicada - usuario ya en clase")
     void crearInscripcionDuplicada() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
         // Arrange: Usuario ya está inscrito
         Inscripcion inscripcionExistente = new Inscripcion();
         inscripcionExistente.setUsuarioId(1);
         inscripcionExistente.setClaseId(1);
         inscripcionExistente.setEstado("activa");
 
-        doNothing().when(usuarioService).verificarUsuarioExiste(1);
         when(claseService.obtenerClase(1)).thenReturn(createMockClase());
         when(inscripcionRepository.findAll()).thenReturn(List.of(inscripcionExistente));
 
@@ -215,13 +258,15 @@ public class InscripcionServiceTest {
     @Test
     @DisplayName("✅ NO hay duplicada - inscripción anterior CANCELADA")
     void crearInscripcionCancelada() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
         // Arrange: Inscripción anterior está CANCELADA
         Inscripcion inscripcionCancelada = new Inscripcion();
         inscripcionCancelada.setUsuarioId(1);
         inscripcionCancelada.setClaseId(1);
         inscripcionCancelada.setEstado("cancelada"); // CANCELADA
 
-        doNothing().when(usuarioService).verificarUsuarioExiste(1);
         when(claseService.obtenerClase(1)).thenReturn(createMockClase());
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(10); // 10 cupos disponibles
         when(inscripcionRepository.findAll()).thenReturn(List.of(inscripcionCancelada));
@@ -238,13 +283,15 @@ public class InscripcionServiceTest {
     @Test
     @DisplayName("✅ NO hay duplicada - es usuario diferente en MISMA clase")
     void crearInscripcionUsuarioDiferente() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
         // Arrange: Otro usuario está en la misma clase
         Inscripcion inscripcionOtroUsuario = new Inscripcion();
         inscripcionOtroUsuario.setUsuarioId(2); // Diferente usuario
         inscripcionOtroUsuario.setClaseId(1);
         inscripcionOtroUsuario.setEstado("activa");
 
-        doNothing().when(usuarioService).verificarUsuarioExiste(1);
         when(claseService.obtenerClase(1)).thenReturn(createMockClase());
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(10); // 10 cupos disponibles
         when(inscripcionRepository.findAll()).thenReturn(List.of(inscripcionOtroUsuario));
@@ -263,8 +310,10 @@ public class InscripcionServiceTest {
     @Test
     @DisplayName("❌ VALIDACIÓN 4: No hay cupos disponibles")
     void crearInscripcionSinCupos() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
         // Arrange: Clase con 1 cupo
-        doNothing().when(usuarioService).verificarUsuarioExiste(1);
         when(claseService.obtenerClase(1)).thenReturn(createMockClase()); // 1 cupo
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(1);
 
@@ -287,8 +336,10 @@ public class InscripcionServiceTest {
     @Test
     @DisplayName("✅ VALIDACIÓN 4: Hay cupos disponibles")
     void crearInscripcionConCupos() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
         // Arrange: Clase con 2 cupos
-        doNothing().when(usuarioService).verificarUsuarioExiste(1);
         when(claseService.obtenerClase(1)).thenReturn(createMockClase()); // 1 cupo
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(2); // 2 cupos
 
@@ -312,8 +363,10 @@ public class InscripcionServiceTest {
     @Test
     @DisplayName("✅ VALIDACIÓN 4: Hay cupos disponibles (2/3)")
     void crearInscripcionConCuposMultiples() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
         // Arrange: Clase con 3 cupos
-        doNothing().when(usuarioService).verificarUsuarioExiste(1);
         when(claseService.obtenerClase(1)).thenReturn(createMockClase());
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(3);
 
