@@ -28,18 +28,25 @@ Las reglas de trabajo y la metodología del proyecto están definidas en [AGENTS
 ## Estructura del repositorio
 
 ```
-├── backend/                # API REST (Spring Boot)
+├── backend/                    # API REST (Spring Boot)
 │   └── src/main/java/com/sportcourt/backend/
-│       ├── controller/      # Endpoints REST
-│       ├── service/         # Lógica de negocio
-│       ├── repository/      # Spring Data JPA
-│       ├── model/           # Entidades JPA
-│       ├── dto/             # DTOs con validación (@Valid)
-│       └── exception/       # Manejo centralizado de errores
-├── assets/                 # CSS y JS del frontend
-├── docs/                   # Documentación del proyecto por fase
-├── *.html                  # Páginas del frontend (index, login, canchas, clases, reservas, perfil, admin)
-└── AGENTS.md                # Reglas y metodología del proyecto
+│       ├── controller/          # Endpoints REST
+│       ├── service/             # Lógica de negocio
+│       ├── repository/          # Spring Data JPA
+│       ├── model/               # Entidades JPA
+│       ├── dto/                 # DTOs con validación (@Valid)
+│       ├── config/               # Seguridad, CORS
+│       └── exception/           # Manejo centralizado de errores
+├── frontend/                   # Páginas estáticas + assets del cliente
+│   ├── assets/
+│   │   ├── css/                  # Tailwind (app.css fuente, app.min.css generado)
+│   │   └── js/                   # app.js (consumo de la API REST)
+│   ├── index.html, login.html, canchas.html, clases.html,
+│   │   reservas.html, perfil.html, admin.html
+├── docs/                        # Documentación del proyecto por fase
+├── .github/workflows/           # CI (GitHub Actions)
+├── package.json                 # Build de Tailwind CSS (raíz del repo)
+└── AGENTS.md                    # Reglas y metodología del proyecto
 ```
 
 ## Requisitos previos
@@ -79,7 +86,7 @@ El backend queda disponible en `http://localhost:8080`.
 
 ## Cómo correr el frontend
 
-El frontend son páginas estáticas que consumen la API REST. Cualquier servidor estático sirve (por ejemplo, la extensión "Live Server" de VS Code en el puerto `5500`, que ya está permitido en la configuración CORS del backend).
+El frontend son páginas estáticas que consumen la API REST, ubicadas en [frontend/](frontend/). Cualquier servidor estático sirve (por ejemplo, la extensión "Live Server" de VS Code abriendo `frontend/index.html` en el puerto `5500`, que ya está permitido en la configuración CORS del backend).
 
 Para compilar el CSS de Tailwind:
 
@@ -92,11 +99,11 @@ npm run build:css  # compila minificado, para producción
 ## Tests
 
 ```bash
-# Backend (65 tests: unitarios + contexto Spring con H2 en memoria)
+# Backend (71 tests: unitarios + contexto Spring con H2 en memoria + integración CSRF)
 cd backend
 ./mvnw test
 
-# Frontend (chequeo de sintaxis de assets/js/app.js)
+# Frontend (chequeo de sintaxis de frontend/assets/js/app.js)
 npm test
 ```
 

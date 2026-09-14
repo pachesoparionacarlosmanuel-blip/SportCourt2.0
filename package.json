@@ -1,12 +1,11 @@
 {
   "name": "sportcourt2.0",
   "version": "1.0.0",
-  "description": "",
-  "main": "script.js",
+  "description": "Sistema web para la gestión de canchas deportivas, clases, reservas e inscripciones.",
   "scripts": {
-    "dev": "npx @tailwindcss/cli -i ./assets/css/app.css -o ./assets/css/app.min.css --watch",
-    "build:css": "npx @tailwindcss/cli -i ./assets/css/app.css -o ./assets/css/app.min.css --minify",
-    "test": "node --check assets/js/app.js"
+    "dev": "npx @tailwindcss/cli -i ./frontend/assets/css/app.css -o ./frontend/assets/css/app.min.css --watch",
+    "build:css": "npx @tailwindcss/cli -i ./frontend/assets/css/app.css -o ./frontend/assets/css/app.min.css --minify",
+    "test": "node --check frontend/assets/js/app.js"
   },
   "repository": {
     "type": "git",

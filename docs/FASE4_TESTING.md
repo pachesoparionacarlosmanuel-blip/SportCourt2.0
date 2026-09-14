@@ -1,22 +1,31 @@
 # ✅ FASE 4: TESTING Y VALIDACIÓN - COMPLETADA, corriendo en CI
 
+> **Actualizado 2026-09-14:** se agregó `CsrfLoginFlowTest`, una suite de
+> integración end-to-end (sin mocks, `java.net.http.HttpClient` contra un
+> servidor embebido real) que verifica el flujo CSRF completo alrededor de
+> `/api/login` — incluyendo la regresión que motivó el fix de
+> `CsrfTokenRequestAttributeHandler` (el token del body debe coincidir con el
+> valor crudo de la cookie). También se amplió `ReservaServiceTest` con la
+> autorización por propietario/ADMIN en `eliminarReserva`. Cifras verificadas
+> ejecutando `./mvnw clean test` sin ninguna variable de entorno de base de
+> datos configurada.
+>
 > **Actualizado 2026-09-13:** además de ampliar los tests de `ReservaService`
 > e `InscripcionService` (CSRF + autorización por propietario), se activó el
 > perfil `test` (H2 en memoria) en `BackendApplicationTests` — ya no depende
 > de la MySQL real — y se agregó el job `validar-backend` en
 > `.github/workflows/validar-proyecto.yml`, que corre `mvn test` en cada
-> push/PR. Cifras verificadas ejecutando `./mvnw clean test` sin ninguna
-> variable de entorno de base de datos configurada.
+> push/PR.
 
 ## 📋 Resumen Ejecutivo
 
 | Métrica | Valor |
 |---------|-------|
-| **Suites de test** | 5 de servicio (Mockito) + 1 de contexto Spring (H2) |
-| **Total de Tests** | 65 tests |
-| **Tests Pasados** | 65 ✅ |
+| **Suites de test** | 5 de servicio (Mockito) + 1 de contexto Spring (H2) + 1 de integración CSRF end-to-end |
+| **Total de Tests** | 71 tests |
+| **Tests Pasados** | 71 ✅ |
 | **Tests Fallidos** | 0 |
-| **Cobertura** | Servicios críticos (ReservaService, InscripcionService) |
+| **Cobertura** | Servicios críticos (ReservaService, InscripcionService) + flujo CSRF/login real |
 | **CI** | `validar-backend` en GitHub Actions corre `mvn test` en cada push/PR |
 
 `BackendApplicationTests` ahora usa `@ActiveProfiles("test")` →
@@ -54,7 +63,7 @@ en tu máquina que en el runner de GitHub Actions.
 ❌ **Casos de Error:**
 - Obtener clase no existente → ResourceNotFoundException
 
-### 3. **ReservaServiceTest** (32 tests)
+### 3. **ReservaServiceTest** (34 tests)
 
 ✅ **Casos de Éxito:**
 - Crear reserva exitosa con datos válidos
@@ -82,10 +91,14 @@ en tu máquina que en el runner de GitHub Actions.
 **VALIDACIÓN 5: Capacidad no disponible**
 - Sin capacidad → BusinessException ✓
 
-**VALIDACIÓN 6 (nueva): Autorización por propietario al cancelar**
+**VALIDACIÓN 6: Autorización por propietario al cancelar**
 - Usuario NO puede cancelar la reserva de otro usuario → BusinessException/AccessDenied ✓
 - Un ADMIN SÍ puede cancelar la reserva de otro usuario ✓ (necesario para que el panel admin
   pueda cancelar reservas de cualquier usuario contra la API real)
+
+**VALIDACIÓN 7 (nueva): Autorización por propietario al eliminar**
+- Usuario NO puede eliminar la reserva de otro usuario → AccessDeniedException ✓
+- Un ADMIN SÍ puede eliminar la reserva de otro usuario ✓
 
 **Ampliación (nueva): Actualizar reserva (`actualizarReserva`)**
 - Conserva su propio horario sin marcarlo como duplicado ✓
@@ -135,6 +148,22 @@ en tu máquina que en el runner de GitHub Actions.
 ❌ **Casos de Error:**
 - Obtener usuario no existente → ResourceNotFoundException ✓
 - Verificar usuario no existe → ResourceNotFoundException ✓
+
+### 6. **CsrfLoginFlowTest** (4 tests, integración end-to-end)
+
+A diferencia de las otras suites (Mockito, sin contexto Spring), esta corre contra un
+servidor embebido real (`@SpringBootTest(webEnvironment = RANDOM_PORT)`) usando
+`java.net.http.HttpClient` puro — sin mocks ni módulos de test de Spring Security — para
+pasar por el filtro de seguridad de verdad, tal como lo haría un navegador.
+
+✅ **Casos verificados:**
+- `POST /api/login` sin cookie ni header CSRF → **403** (Spring Security bloquea el POST)
+- `GET /api/csrf` fija la cookie `XSRF-TOKEN` en la respuesta
+- Flujo completo: `GET /api/csrf` → cookie + header `X-XSRF-TOKEN` → `POST /api/login`
+  pasa el filtro CSRF y falla solo por credenciales inválidas (**401**, no 403)
+- El token expuesto en el body JSON de `/api/csrf` coincide con el valor crudo de la
+  cookie `XSRF-TOKEN` (regresión: con el handler `Xor` por defecto no coincidían, y el
+  frontend —que lee la cookie directo— nunca podía pasar el filtro CSRF)
 
 ---
 
@@ -227,14 +256,21 @@ public class [Service]Test {
 
 ### Comando
 ```bash
-./mvnw test -Dtest=ReservaServiceTest,InscripcionServiceTest,CanchaServiceTest,ClaseServiceTest,UsuarioServiceTest
+./mvnw test
 ```
 
-### Resultado
+### Resultado (verificado 2026-09-14)
 ```
-[INFO] Tests run: 44, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Total time: 9.716 s
-[INFO] BUILD SUCCESS
+BackendApplicationTests:    1 test
+CsrfLoginFlowTest:          4 tests
+CanchaServiceTest:          7 tests
+ClaseServiceTest:           7 tests
+InscripcionServiceTest:    12 tests
+ReservaServiceTest:        34 tests
+UsuarioServiceTest:         6 tests
+--------------------------------
+Tests run: 71, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
 ```
 
 ---
@@ -268,11 +304,12 @@ public class [Service]Test {
 
 | Servicio | Tests | Métodos Probados | Coverage |
 |----------|-------|------------------|----------|
-| ReservaService | 32 | crearReserva(), obtenerReserva(), actualizarReserva(), cancelarReserva(), listarReservas(), eliminarReserva() | 100% |
+| ReservaService | 34 | crearReserva(), obtenerReserva(), actualizarReserva(), cancelarReserva(), listarReservas(), eliminarReserva() | 100% |
 | InscripcionService | 12 | crearInscripcion(), obtenerInscripcion(), cancelarInscripcion() | 100% |
 | CanchaService | 7 | crearCancha(), obtenerCancha(), listarCanchas(), actualizarCancha(), eliminarCancha() | 100% |
 | ClaseService | 7 | crearClase(), obtenerClase(), listarClases(), actualizarClase(), eliminarClase() | 100% |
 | UsuarioService | 6 | obtenerUsuario(), listarUsuarios(), verificarUsuarioExiste() | 100% |
+| CSRF/login (integración) | 4 | flujo GET /api/csrf → POST /api/login end-to-end | — |
 
 ---
 
@@ -288,12 +325,13 @@ public class [Service]Test {
 
 ## 📦 Archivos Creados/Modificados
 
-### Creados (5 test suites)
-- ✅ ReservaServiceTest.java (1588 líneas — ampliado con tests de actualización, listado y autorización por propietario)
+### Creados (6 test suites)
+- ✅ ReservaServiceTest.java — ampliado con tests de actualización, listado y autorización por propietario/ADMIN (cancelar y eliminar)
 - ✅ InscripcionServiceTest.java (403 líneas)
 - ✅ CanchaServiceTest.java (142 líneas)
 - ✅ ClaseServiceTest.java (142 líneas)
 - ✅ UsuarioServiceTest.java (116 líneas)
+- ✅ CsrfLoginFlowTest.java (122 líneas — integración end-to-end, sin mocks)
 
 ### Configuración de Tests
 - ✅ application-test.properties (H2 database)
@@ -309,7 +347,7 @@ public class [Service]Test {
 ✅ Fase 1: Seguridad (+ endurecimiento CSRF/autorización) — 100%
 ✅ Fase 2: Arquitectura (DTOs)       — 100%
 ✅ Fase 3: Lógica de Negocio (Services) — 100%
-✅ Fase 4: Testing (65 tests, H2 en CI) — 100%
+✅ Fase 4: Testing (71 tests, H2 en CI) — 100%
 
 ⏳ Fase 5: Frontend (JavaScript)     — PENDIENTE
 ⏳ Fase 6: Documentación (OpenAPI)   — PENDIENTE
@@ -321,10 +359,9 @@ Progreso Total: ~63%
 
 ## 📊 Estadísticas
 
-- **Archivos de test**: 6 (5 de servicio + `BackendApplicationTests`)
-- **Tests totales**: 65
-- **Líneas de código de tests**: 2,391
-- **Cobertura**: Todos los servicios críticos
+- **Archivos de test**: 7 (5 de servicio + `BackendApplicationTests` + `CsrfLoginFlowTest`)
+- **Tests totales**: 71
+- **Cobertura**: Todos los servicios críticos + flujo CSRF/login real
 - **Tasa de éxito**: 100%
 - **CI**: corre automáticamente en cada push/PR (`validar-backend`)
 

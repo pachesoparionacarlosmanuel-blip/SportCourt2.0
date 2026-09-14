@@ -91,7 +91,7 @@ entorno donde corra el `.jar` (systemd, Docker, panel del hosting, etc.):
 
 ```bash
 cd backend
-./mvnw clean package -DskipTests   # o sin -DskipTests si quieres correr los 65 tests antes
+./mvnw clean package -DskipTests   # o sin -DskipTests si quieres correr los 71 tests antes
 java -jar target/backend-0.0.1-SNAPSHOT.jar
 ```
 
@@ -103,12 +103,12 @@ de la sección anterior.
 
 ```bash
 npm install
-npm run build:css   # genera assets/css/app.min.css minificado
+npm run build:css   # genera frontend/assets/css/app.min.css minificado
 ```
 
-Sube los `.html` de la raíz y la carpeta `assets/` a tu servidor estático (Nginx,
-Apache, Netlify, un bucket estático, etc.). El frontend no necesita Node ni Java en
-producción, son archivos estáticos.
+Sube el contenido de la carpeta [frontend/](../frontend/) (los `.html` y `assets/`) a tu
+servidor estático (Nginx, Apache, Netlify, un bucket estático, etc.). El frontend no
+necesita Node ni Java en producción, son archivos estáticos.
 
 ## 6. Ajustes obligatorios antes de ir a producción
 
@@ -116,11 +116,13 @@ Estos tres archivos tienen valores de **desarrollo local** (`localhost`) que hay
 actualizar para el dominio real. Ningún cambio se hace automáticamente — repórtalos
 como pendientes de autorización antes de tocarlos:
 
-- **`assets/js/app.js`** — `const API_URL = 'http://localhost:8080/api';` (línea 1)
+- **`frontend/assets/js/app.js`** — `const API_URL = 'http://localhost:8080/api';` (línea 1)
   debe apuntar al dominio real del backend (con HTTPS en producción).
 - **`backend/src/main/java/com/sportcourt/backend/config/CorsConfig.java`** —
-  `allowedOrigins` solo permite `localhost:3000` / `localhost:5500` / `127.0.0.1:5500`;
-  debe incluir el dominio real donde se sirva el frontend.
+  el bean `CorsConfigurationSource` (`setAllowedOrigins`) solo permite `localhost:3000` /
+  `localhost:5500` / `127.0.0.1:5500`; debe incluir el dominio real donde se sirva el
+  frontend. Esta fuente está conectada en `SecurityConfig.java` vía `.cors(...)` — no
+  cambiar solo un archivo sin el otro.
 - **Content-Security-Policy** en el `<meta>` de cada `.html` (`connect-src`) y en
   `SecurityConfig.java` — ambos apuntan a `http://localhost:8080`; deben apuntar al
   dominio real del backend.

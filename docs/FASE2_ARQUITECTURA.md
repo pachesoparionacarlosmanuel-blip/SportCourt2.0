@@ -1,5 +1,12 @@
 # FASE 2: Mejoras Arquitectónicas — SportCourt 2.0
 
+> ❗ **Actualización posterior (2026-09-14, Fase 1C):** `CreateUsuarioDTO.java` fue
+> eliminado por ser código muerto — el endpoint `POST /api/register` que iba a
+> usarlo nunca se implementó. De los 6 DTOs listados abajo, hoy quedan 5
+> (`CreateUsuarioDTO` ya no existe). Este documento describe el cierre de
+> Fase 2 tal como ocurrió en su momento (2026-09-08) y no se reescribe. Ver
+> `docs/PROYECTO_STATUS.md` (Fase 1C) para el estado actual.
+
 ## 📋 Resumen Ejecutivo
 
 **Estado**: ✅ COMPLETADA Y COMPILADA

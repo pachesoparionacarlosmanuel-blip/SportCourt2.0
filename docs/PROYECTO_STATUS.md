@@ -1,6 +1,6 @@
 # SportCourt 2.0 - Estado del Proyecto
 
-**Última Actualización:** 2026-09-13  
+**Última Actualización:** 2026-09-14  
 **Compilación Actual:** BUILD SUCCESS ✅
 
 ---
@@ -70,7 +70,8 @@
 │ FASE 4: TESTING Y VALIDACIÓN                                  │
 │ ✅ COMPLETADA (unit tests) + CI corriéndolos en cada push      │
 │                                                                │
-│ - ✅ 65 tests (JUnit 5 + Mockito + 1 @SpringBootTest), 0 fallos│
+│ - ✅ 71 tests (JUnit 5 + Mockito + 1 @SpringBootTest + 1        │
+│   integración CSRF end-to-end), 0 fallos                       │
 │ - ✅ Pruebas de duplicados y superposición de horarios         │
 │ - ✅ Pruebas de capacidad/cupos                                │
 │ - ✅ Pruebas de autorización por propietario (Reserva)         │
@@ -94,6 +95,48 @@
 │   (ADMIN vs autenticado, por método HTTP)                      │
 │ - ✅ UsuarioService.obtenerUsuarioPorEmail para resolver al     │
 │   usuario autenticado desde el contexto de seguridad           │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌────────────────────────────────────────────────────────────────┐
+│ FASE 1C: CORS/CSRF Y XSS — ÚLTIMOS DETALLES                    │
+│ ✅ COMPLETADA — 2026-09-13                                     │
+│                                                                │
+│ - ✅ Fix crítico de preflight: CorsConfig pasa de               │
+│   WebMvcConfigurer a un bean CorsConfigurationSource            │
+│   conectado en SecurityConfig vía .cors(...). Sin esa           │
+│   conexión, cada preflight (OPTIONS) se trataba como petición   │
+│   anónima: se le creaba una JSESSIONID nueva que pisaba la      │
+│   cookie de sesión autenticada justo antes de la petición       │
+│   real, tumbando con 403 cualquier llamada con headers no       │
+│   "simples" (p. ej. X-XSRF-TOKEN)                               │
+│ - ✅ CsrfTokenRequestAttributeHandler (sin XOR) en vez del       │
+│   handler por defecto, para que el valor de la cookie           │
+│   XSRF-TOKEN coincida con el que el backend espera en el        │
+│   header (patrón double-submit-cookie usado por el frontend)    │
+│ - ✅ admin.html ahora exige ROLE_ADMIN en SecurityConfig (antes  │
+│   era público y solo el frontend lo ocultaba por rol)           │
+│ - ✅ ReservaService.eliminarReserva ahora valida propietario o   │
+│   ADMIN antes de borrar (antes cualquier usuario autenticado    │
+│   podía eliminar la reserva de otro solo conociendo su ID)      │
+│ - ✅ Frontend: helper escapeHtml() aplicado a todo el contenido  │
+│   dinámico insertado vía innerHTML (nombres de cancha/clase/    │
+│   usuario, descripciones, fechas) para prevenir XSS almacenado  │
+│ - ✅ Frontend: getCsrfTokenAsync() pide GET /api/csrf si la      │
+│   cookie XSRF-TOKEN aún no existe; todas las mutaciones         │
+│   (reservar, cancelar, inscribirse, CRUD del panel admin)       │
+│   envían X-XSRF-TOKEN                                           │
+│ - ✅ CsrfLoginFlowTest: 4 tests de integración end-to-end        │
+│   (java.net.http.HttpClient real, sin mocks) que verifican el   │
+│   flujo CSRF completo contra el servidor embebido               │
+│ - ✅ CI: job validar-backend separado de validar-frontend en     │
+│   validar-proyecto.yml, cada uno corriendo en su propio job     │
+│ - ✅ Limpieza: eliminados CreateUsuarioDTO y los métodos         │
+│   encryptPassword/verifyPassword de AuthService (código muerto, │
+│   el registro de usuarios no está expuesto por la API)          │
+│ - ✅ assets/css/*.css movido fuera de assets/js/ a assets/css/   │
+│ - ✅ Reorganización de carpetas: todo el frontend (los 7 .html,  │
+│   assets/css/ y assets/js/) se movió de la raíz a frontend/,     │
+│   separando claramente cliente estático y backend Spring Boot   │
 └────────────────────────────────────────────────────────────────┘
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
@@ -153,12 +196,13 @@
 | Métrica | Valor |
 |---------|-------|
 | **Archivos Java (main)** | 38 |
-| **Archivos Java (test)** | 6 |
-| **Tests (unit + contexto Spring)** | 65 (0 fallos), corren en CI |
+| **Archivos Java (test)** | 7 |
+| **Tests (unit + contexto Spring + integración CSRF)** | 71 (0 fallos), corren en CI |
 | **Servicios implementados** | 5 |
 | **Validaciones críticas** | 9 |
 | **Controladores actualizados** | 5 |
-| **DTOs creados** | 6 |
+| **DTOs creados** | 6 (Fase 2; hoy 5 vigentes de ese lote — `CreateUsuarioDTO` eliminado en Fase 1C, ver abajo) |
+| **DTOs vigentes hoy** | 7 (5 de Fase 2 + LoginRequest + LoginResponse) |
 | **Excepciones personalizadas** | 2 |
 
 ---
@@ -216,10 +260,11 @@
 |--------|--------|---------|
 | **Contraseñas** | ✅ BCrypt | Strength 10, nunca en respuestas |
 | **Credenciales BD** | ✅ Vars.Env | Sin default, obligatorias (`DB_USERNAME`/`DB_PASSWORD`) |
-| **CORS** | ✅ Restringido | localhost:5500 / 127.0.0.1:5500 |
-| **CSRF** | ✅ Cookie token | Endpoint `/api/csrf`, `CookieCsrfTokenRepository` |
-| **Autorización por rol** | ✅ SecurityConfig | ADMIN vs autenticado, por ruta y método HTTP |
-| **Autorización por propietario** | ✅ ReservaController | Usuario solo accede a sus propias reservas (ADMIN ve todas) |
+| **CORS** | ✅ Restringido + conectado a Security | `CorsConfigurationSource` (localhost:5500 / 127.0.0.1:5500) enlazado vía `.cors(...)`, resuelve preflight antes de la sesión |
+| **CSRF** | ✅ Cookie token (double-submit) | Endpoint `/api/csrf`, `CookieCsrfTokenRepository` + `CsrfTokenRequestAttributeHandler` (sin XOR) |
+| **Autorización por rol** | ✅ SecurityConfig | ADMIN vs autenticado, por ruta y método HTTP; `admin.html` exige `ROLE_ADMIN` |
+| **Autorización por propietario** | ✅ ReservaService | Usuario solo ve/cancela/elimina sus propias reservas (ADMIN puede todas) |
+| **XSS almacenado** | ✅ escapeHtml() | Todo el contenido dinámico (nombres, descripciones, fechas) se escapa antes de insertarse en innerHTML |
 | **Input Validation** | ✅ DTOs | @NotNull, @Email, @Size, etc. |
 | **SQL Logging** | ✅ Deshabilitado | No expone queries |
 | **Error Handling** | ✅ Genérico | No expone detalles técnicos |
@@ -270,6 +315,11 @@
 | Mismatch de campos ClaseDTO en panel admin (nombre/nivel vs name/level) | 5 | mapClaseDesdeAPI() unificado | ✅ FIXED |
 | localStorage como fuente de verdad de canchas/clases (admin) | 5 | Eliminados SEED_*/loadData/saveData | ✅ FIXED |
 | Respuestas de API sin validar forma antes de .map/.find | 5 | Helper asArray() | ✅ FIXED |
+| Preflight (OPTIONS) creaba sesión nueva y tumbaba el login con 403 | 1C | CorsConfigurationSource conectado vía `.cors(...)` en SecurityConfig | ✅ FIXED |
+| Token CSRF del body no coincidía con la cookie (handler XOR) | 1C | CsrfTokenRequestAttributeHandler | ✅ FIXED |
+| admin.html accesible sin rol ADMIN a nivel de servidor | 1C | `.requestMatchers("/admin.html").hasRole("ADMIN")` | ✅ FIXED |
+| Cualquier usuario autenticado podía eliminar la reserva de otro por ID | 1C | Chequeo de propietario/ADMIN en `eliminarReserva` | ✅ FIXED |
+| XSS almacenado: nombres/descripciones se insertaban sin escapar en innerHTML | 1C | Helper escapeHtml() en todas las vistas dinámicas | ✅ FIXED |
 
 ---
 
@@ -286,20 +336,22 @@
   - `exception/` - ErrorResponse, ResourceNotFoundException, BusinessException, GlobalExceptionHandler
   - `BackendApplication.java` - Main app
 - `backend/src/test/java/com/sportcourt/backend/` - `BackendApplicationTests` (contexto Spring, perfil
-  "test" con H2) + `service/` con 5 suites de unit tests (65 tests en total)
+  "test" con H2) + `CsrfLoginFlowTest` (4 tests de integración end-to-end del flujo CSRF, sin mocks)
+  + `service/` con 5 suites de unit tests (71 tests en total)
 
 ### Base de Datos
 - `sportcourt` (MySQL)
   - usuarios, canchas, clases, reservas, inscripciones
 
-### Frontend (HTML/CSS/JS)
-- `index.html` - Home
-- `login.html` - Autenticación
-- `canchas.html` - Listado canchas
-- `clases.html` - Listado clases
-- `reservas.html` - Mis reservas (incluye inscripciones a clases)
-- `perfil.html` - Perfil usuario
-- `admin.html` - Panel admin
+### Frontend (HTML/CSS/JS) — `frontend/`
+- `frontend/index.html` - Home
+- `frontend/login.html` - Autenticación
+- `frontend/canchas.html` - Listado canchas
+- `frontend/clases.html` - Listado clases
+- `frontend/reservas.html` - Mis reservas (incluye inscripciones a clases)
+- `frontend/perfil.html` - Perfil usuario
+- `frontend/admin.html` - Panel admin
+- `frontend/assets/css/`, `frontend/assets/js/app.js` - Tailwind y lógica de consumo de la API
 
 ### Configuración
 - `pom.xml` - Dependencias Maven (incluye springdoc-openapi 3.1.1)
@@ -372,14 +424,18 @@ Según AGENTS.md:
 SEGURIDAD    ████████████████████ ✅ 100%
 ARQUITECTURA ████████████████████ ✅ 100%
 LÓGICA NEG.  ████████████████████ ✅ 100%
-TESTING      ████████████████░░░░ 🟡  80% (unit ✅ / integración ⏳)
+TESTING      █████████████████░░░ 🟡  85% (unit ✅ / integración CSRF ✅ / integración endpoints ⏳)
 FRONTEND     ██████████████████░░ 🟡  90% (código ✅ / verificación E2E ⏳)
 DOCUMENTAC.  ████████████████████ ✅ 100%
 
 Progreso General: ███████████████████░░ 95%
 ```
 
-**Último BUILD:** 2026-09-13 - BUILD SUCCESS ✅ (65/65 tests, 0 fallos, corre en CI)  
+**Último BUILD:** 2026-09-14 - BUILD SUCCESS ✅ (71/71 tests, 0 fallos, corre en CI)  
+**Seguridad (Fase 1C):** fix de preflight CORS/CSRF que tumbaba el login con 403, admin.html
+restringido a ROLE_ADMIN en el servidor, autorización por propietario también en
+`eliminarReserva`, y escapeHtml() contra XSS almacenado en todas las vistas dinámicas del
+frontend.  
 **Frontend:** console.log eliminados, errores 404/409 mostrados con el mensaje real del backend,
 respuestas de API validadas antes de usarse, mismatches de DTO en Clase corregidos, localStorage
 ya no es fuente de verdad de negocio.  
