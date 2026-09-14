@@ -4,6 +4,7 @@ import com.sportcourt.backend.dto.ReservaDTO;
 import com.sportcourt.backend.model.Reserva;
 import com.sportcourt.backend.service.ReservaService;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/reservas")
+@Tag(name = "Reservas", description = "Reserva de canchas y consulta/cancelación de reservas")
 public class ReservaController {
 
     private final ReservaService reservaService;

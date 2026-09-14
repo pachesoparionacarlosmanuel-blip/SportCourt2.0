@@ -465,6 +465,45 @@ public class ReservaServiceTest {
         }
 
         @Test
+        @DisplayName("❌ VALIDACIÓN 5: Capacidad NULL en la cancha (dato legado) se trata como 1, sin NullPointerException")
+        void crearReservaConCapacidadNulaSeTrataComoUnaYRechazaSegundaReserva() {
+                // Arrange: Cancha sin capacidad definida en la BD (NULL)
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
+                when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
+                when(canchaService.obtenerCapacidadCancha(1)).thenReturn(null);
+
+                // Ya hay 1 reserva activa: con capacidad NULL tratada como 1, debe rechazar
+                Reserva reservaExistente = new Reserva();
+                reservaExistente.setUsuarioId(2);
+                reservaExistente.setCanchaId(1);
+                reservaExistente.setFecha(LocalDate.of(2026, 9, 10));
+                reservaExistente.setHoraInicio(LocalTime.of(10, 0));
+                reservaExistente.setHoraFin(LocalTime.of(11, 0));
+                reservaExistente.setEstado("activa");
+                when(reservaRepository.buscarReservasDuplicadas(
+                                eq(1),
+                                eq(1),
+                                eq(LocalDate.of(2026, 9, 10)),
+                                eq(LocalTime.of(10, 0)),
+                                eq(LocalTime.of(11, 0)),
+                                isNull())).thenReturn(List.of());
+                when(reservaRepository.buscarReservasSuperpuestas(
+                                eq(1),
+                                eq(LocalDate.of(2026, 9, 10)),
+                                eq(LocalTime.of(10, 0)),
+                                eq(LocalTime.of(11, 0)),
+                                isNull())).thenReturn(List.of(reservaExistente));
+
+                // Act & Assert: BusinessException (409), no NullPointerException (500)
+                assertThrows(BusinessException.class, () -> {
+                        reservaService.crearReserva(validReservaDTO);
+                });
+
+                verify(reservaRepository, never()).save(any());
+        }
+
+        @Test
         @DisplayName("✅ VALIDACIÓN 5: Capacidad disponible - reserva exitosa")
         void crearReservaConCapacidad() {
                 // Arrange: Cancha con capacidad 2
@@ -1490,53 +1529,29 @@ public class ReservaServiceTest {
         }
 
         @Test
-        @DisplayName("Obtiene correctamente las reservas de un usuario")
-        void obtenerReservasDeUsuario() {
-
+        @DisplayName("Un ADMIN puede cancelar la reserva de otro usuario")
+        void adminPuedeCancelarReservaDeOtroUsuario() {
                 // Arrange
-                Integer usuarioId = 1;
+                autenticarUsuario(99, "admin@test.com", "ADMIN");
 
-                autenticarUsuario(1, "usuario@test.com", "USER");
-
-                Reserva reserva1 = new Reserva();
-                reserva1.setId(1);
-                reserva1.setUsuarioId(usuarioId);
-                reserva1.setCanchaId(1);
-                reserva1.setFecha(LocalDate.of(2026, 9, 10));
-                reserva1.setHoraInicio(LocalTime.of(10, 0));
-                reserva1.setHoraFin(LocalTime.of(11, 0));
-                reserva1.setEstado("activa");
-
-                Reserva reserva2 = new Reserva();
-                reserva2.setId(2);
-                reserva2.setUsuarioId(usuarioId);
-                reserva2.setCanchaId(2);
-                reserva2.setFecha(LocalDate.of(2026, 9, 11));
-                reserva2.setHoraInicio(LocalTime.of(12, 0));
-                reserva2.setHoraFin(LocalTime.of(13, 0));
-                reserva2.setEstado("activa");
-
-                when(reservaRepository.findByUsuarioId(usuarioId))
-                                .thenReturn(List.of(reserva1, reserva2));
+                when(reservaRepository.findById(1)).thenReturn(Optional.of(mockReserva));
+                when(reservaRepository.save(any(Reserva.class))).thenReturn(mockReserva);
 
                 // Act
-                List<Reserva> resultado = reservaService.obtenerReservasDeUsuario(usuarioId);
+                Reserva resultado = reservaService.cancelarReserva(1);
 
                 // Assert
-                assertNotNull(resultado);
-                assertEquals(2, resultado.size());
-                assertEquals(usuarioId, resultado.get(0).getUsuarioId());
-                assertEquals(usuarioId, resultado.get(1).getUsuarioId());
-
-                verify(reservaRepository).findByUsuarioId(usuarioId);
+                assertEquals("cancelada", resultado.getEstado());
+                verify(reservaRepository).save(any(Reserva.class));
         }
 
         @Test
-        @DisplayName("Elimina una reserva existente correctamente")
+        @DisplayName("Elimina una reserva existente correctamente (dueño autenticado)")
         void eliminarReserva() {
 
                 // Arrange
                 Integer reservaId = 1;
+                autenticarUsuario(1, "usuario@test.com", "USER");
 
                 Reserva reserva = new Reserva();
                 reserva.setId(reservaId);
@@ -1575,6 +1590,43 @@ public class ReservaServiceTest {
 
                 verify(reservaRepository).findById(reservaId);
                 verify(reservaRepository, never()).deleteById(reservaId);
+        }
+
+        @Test
+        @DisplayName("Un usuario no puede eliminar la reserva de otro usuario")
+        void usuarioNoPuedeEliminarReservaDeOtroUsuario() {
+
+                // Arrange
+                Integer reservaId = 1;
+                autenticarUsuario(2, "otro@test.com", "USER");
+
+                when(reservaRepository.findById(reservaId))
+                                .thenReturn(Optional.of(mockReserva)); // mockReserva pertenece al usuario 1
+
+                // Act & Assert
+                assertThrows(
+                                org.springframework.security.access.AccessDeniedException.class,
+                                () -> reservaService.eliminarReserva(reservaId));
+
+                verify(reservaRepository, never()).deleteById(reservaId);
+        }
+
+        @Test
+        @DisplayName("Un ADMIN puede eliminar la reserva de otro usuario")
+        void adminPuedeEliminarReservaDeOtroUsuario() {
+
+                // Arrange
+                Integer reservaId = 1;
+                autenticarUsuario(99, "admin@test.com", "ADMIN");
+
+                when(reservaRepository.findById(reservaId))
+                                .thenReturn(Optional.of(mockReserva)); // mockReserva pertenece al usuario 1
+
+                // Act
+                reservaService.eliminarReserva(reservaId);
+
+                // Assert
+                verify(reservaRepository).deleteById(reservaId);
         }
 
         // ==================== HELPER METHODS ====================

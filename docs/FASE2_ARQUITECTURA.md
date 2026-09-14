@@ -1,5 +1,12 @@
 # FASE 2: Mejoras Arquitectónicas — SportCourt 2.0
 
+> ❗ **Actualización posterior (2026-09-14, Fase 1C):** `CreateUsuarioDTO.java` fue
+> eliminado por ser código muerto — el endpoint `POST /api/register` que iba a
+> usarlo nunca se implementó. De los 6 DTOs listados abajo, hoy quedan 5
+> (`CreateUsuarioDTO` ya no existe). Este documento describe el cierre de
+> Fase 2 tal como ocurrió en su momento (2026-09-08) y no se reescribe. Ver
+> `docs/PROYECTO_STATUS.md` (Fase 1C) para el estado actual.
+
 ## 📋 Resumen Ejecutivo
 
 **Estado**: ✅ COMPLETADA Y COMPILADA
@@ -63,6 +70,12 @@ Creados 6 DTOs con validaciones:
 | `handleResourceNotFoundException()` | `ResourceNotFoundException` | 404 NOT_FOUND | Recurso no encontrado |
 | `handleBusinessException()` | `BusinessException` | 409 CONFLICT | Errores de lógica de negocio |
 | `handleGlobalException()` | `Exception` (genérica) | 500 INTERNAL_SERVER_ERROR | Otros errores |
+
+> ❗ **Actualización posterior (2026-09-14):** se agregó `handleAccessDeniedException()`
+> (`AccessDeniedException` → 403 FORBIDDEN) para los chequeos de propietario/rol lanzados
+> manualmente en los servicios (Reserva/Inscripcion). Antes de este fix, esas excepciones
+> caían al handler genérico y respondían 500 en vez de 403. Ver `docs/PROYECTO_STATUS.md`
+> para el detalle del bug y su corrección.
 
 #### `ErrorResponse.java`
 - **Estructura estándar**:

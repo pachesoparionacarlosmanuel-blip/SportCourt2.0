@@ -6,7 +6,6 @@ import com.sportcourt.backend.exception.ResourceNotFoundException;
 import com.sportcourt.backend.model.Reserva;
 import com.sportcourt.backend.repository.ReservaRepository;
 
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
@@ -146,23 +145,19 @@ public class ReservaService {
 }
 
     /**
-     * Obtener reservas de un usuario
-     */
-    public List<Reserva> obtenerReservasDeUsuario(Integer usuarioId) {
-        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
-
-        return reservaRepository.findByUsuarioId(usuarioAutenticadoId);
-    }
-
-    /**
      * Cancelar una reserva
      */
     public Reserva cancelarReserva(Integer id) {
         Reserva reserva = obtenerReserva(id);
 
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
         Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
 
-        if (!reserva.getUsuarioId().equals(usuarioAutenticadoId)) {
+        if (!esAdmin && !reserva.getUsuarioId().equals(usuarioAutenticadoId)) {
             throw new org.springframework.security.access.AccessDeniedException(
                     "No tienes permiso para cancelar esta reserva");
         }
@@ -175,7 +170,20 @@ public class ReservaService {
      * Eliminar una reserva
      */
     public void eliminarReserva(Integer id) {
-        obtenerReserva(id); // Verifica que existe
+        Reserva reserva = obtenerReserva(id);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+
+        if (!esAdmin && !reserva.getUsuarioId().equals(usuarioAutenticadoId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "No tienes permiso para eliminar esta reserva");
+        }
+
         reservaRepository.deleteById(id);
     }
 
@@ -232,7 +240,13 @@ public class ReservaService {
             java.time.LocalTime horaFin,
             Integer reservaIdExcluir) {
 
+        // Canchas sin capacidad definida en la BD (dato legado anterior a la
+        // columna "capacidad") se tratan como uso exclusivo: 1 reserva activa
+        // a la vez, en vez de lanzar NullPointerException al desempaquetar.
         Integer capacidadTotal = canchaService.obtenerCapacidadCancha(canchaId);
+        if (capacidadTotal == null) {
+            capacidadTotal = 1;
+        }
 
         long reservasActivas = reservaRepository.buscarReservasSuperpuestas(
                 canchaId,

@@ -4,6 +4,11 @@
 **Compilación:** BUILD SUCCESS (6.080 segundos)  
 **Fecha:** Fase 3 Completa
 
+> ❗ **Actualización posterior (2026-09-14):** la Validación 5 (capacidad disponible) se
+> encontró que lanzaba `NullPointerException` al reservar una cancha real con `capacidad`
+> NULL en MySQL (dato legado, p. ej. canchas id 1 y 2). Se corrigió tratando `capacidad`
+> NULL como 1 (uso exclusivo). Ver `docs/PROYECTO_STATUS.md` para el detalle.
+
 ---
 
 ## 1. Objetivo de la Fase

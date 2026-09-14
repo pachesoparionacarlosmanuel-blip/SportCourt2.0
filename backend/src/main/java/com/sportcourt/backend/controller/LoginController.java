@@ -5,6 +5,7 @@ import com.sportcourt.backend.dto.LoginResponse;
 import com.sportcourt.backend.model.Usuario;
 import com.sportcourt.backend.service.AuthService;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/login")
+@Tag(name = "Login", description = "Autenticación de usuarios")
 public class LoginController {
 
     private final AuthService authService;
