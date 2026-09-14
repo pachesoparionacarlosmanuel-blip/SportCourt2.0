@@ -33,6 +33,23 @@ public class SecurityConfig {
                                                                 org.springframework.security.web.csrf.CookieCsrfTokenRepository
                                                                                 .withHttpOnlyFalse()))
 
+                                // Content-Security-Policy para las respuestas del backend.
+                                // La política real para el frontend vive en el <meta> de cada
+                                // .html, porque las páginas no las sirve este backend.
+                                .headers(headers -> headers
+                                                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                                                "default-src 'self'; " +
+                                                                                "script-src 'self'; " +
+                                                                                "style-src 'self' 'unsafe-inline'; " +
+                                                                                "img-src 'self' https://images.unsplash.com data:; "
+                                                                                +
+                                                                                "font-src 'self'; " +
+                                                                                "connect-src 'self'; " +
+                                                                                "object-src 'none'; " +
+                                                                                "base-uri 'self'; " +
+                                                                                "form-action 'self'; " +
+                                                                                "frame-ancestors 'self';")))
+
                                 .securityContext(securityContext -> securityContext.securityContextRepository(
                                                 new HttpSessionSecurityContextRepository()))
                                 // Configuración de autorización.
@@ -93,25 +110,7 @@ public class SecurityConfig {
                 return http.build();
         }
 
-        @Bean
-        public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
-                org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
-
-                configuration.setAllowedOrigins(java.util.List.of(
-                                "http://localhost:5500",
-                                "http://127.0.0.1:5500"));
-
-                configuration.setAllowedMethods(java.util.List.of(
-                                "GET", "POST", "PUT", "DELETE", "OPTIONS"));
-
-                configuration.setAllowedHeaders(java.util.List.of("*"));
-                configuration.setAllowCredentials(true);
-
-                org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
-
-                source.registerCorsConfiguration("/**", configuration);
-
-                return source;
-        }
+        // La configuración CORS vive únicamente en CorsConfig.java (WebMvcConfigurer)
+        // para evitar dos fuentes de verdad con orígenes inconsistentes.
 
 }

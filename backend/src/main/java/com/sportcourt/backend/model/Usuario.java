@@ -1,5 +1,6 @@
 package com.sportcourt.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -39,6 +40,7 @@ public class Usuario {
     public void setEmail(String email) {
         this.email = email;
     }
+    @JsonIgnore
     public String getPassword() {
         return password;
     }
