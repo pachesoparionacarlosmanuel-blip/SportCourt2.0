@@ -3,6 +3,7 @@ package com.sportcourt.backend.controller;
 import com.sportcourt.backend.dto.UsuarioDTO;
 import com.sportcourt.backend.service.UsuarioService;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +18,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Usuarios", description = "Gestión de usuarios (solo ADMIN)")
 public class UsuarioController {
 
     private final UsuarioService usuarioService;

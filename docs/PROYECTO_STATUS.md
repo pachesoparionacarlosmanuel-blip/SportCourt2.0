@@ -98,22 +98,51 @@
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
 │ FASE 5: FRONTEND                                               │
-│ ⏳ PENDIENTE                                                   │
+│ ✅ COMPLETADA (código) — ⏳ pendiente verificación E2E con      │
+│    MySQL real (sin acceso a DB_USERNAME/DB_PASSWORD locales)    │
 │                                                                │
-│ - Eliminar 70+ console.log                                     │
-│ - Actualizar API calls para nuevos DTOs                        │
-│ - Manejar errores 409 (BusinessException)                      │
-│ - Manejar errores 404 (ResourceNotFoundException)              │
-│ - Validación de respuestas                                     │
+│ - ✅ Eliminados todos los console.log de assets/js/app.js       │
+│ - ✅ Helper parseApiError: muestra el message real del         │
+│   ErrorResponse del backend (400/404/409) en vez del código    │
+│   HTTP genérico, en reservas, cancelaciones, inscripciones y   │
+│   CRUD del panel admin                                         │
+│ - ✅ Helper asArray: valida que las respuestas de la API sean   │
+│   arrays antes de usarlas en .map/.find/.some (canchas,        │
+│   clases, reservas, inscripciones, usuarios)                   │
+│ - ✅ Revisados los 6 DTOs del backend (Cancha, Clase, Reserva,  │
+│   Inscripcion, Usuario, LoginResponse) contra su uso en el     │
+│   frontend                                                      │
+│ - ✅ Bug corregido: al guardar/eliminar una clase en el panel   │
+│   admin, el código leía/escribía campos en español             │
+│   (nombre/nivel/horario/precio/cupos) que no existen en        │
+│   ClaseDTO (name/level/schedule/price/slots) → mostraba        │
+│   nombre y precio en blanco o NaN. Unificado en                │
+│   mapClaseDesdeAPI()                                           │
+│ - ✅ Bug corregido: el formulario de reserva mostraba "Reserva  │
+│   confirmada" sin esperar la respuesta del backend, incluso    │
+│   si fallaba (p. ej. 409 por horario duplicado)                │
+│ - ✅ localStorage ya no se usa como fuente de verdad de datos   │
+│   de negocio: eliminados DEFAULT_COURTS, SEED_COURTS,          │
+│   SEED_CLASSES, loadData/saveData; canchas y clases del panel  │
+│   admin ahora solo vienen de MySQL vía la API                  │
 └────────────────────────────────────────────────────────────────┘
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
 │ FASE 6: DOCUMENTACIÓN FINAL                                    │
-│ ⏳ PENDIENTE                                                   │
+│ ✅ COMPLETADA — 2026-09-13                                     │
 │                                                                │
-│ - OpenAPI/Swagger                                              │
-│ - README actualizado                                           │
-│ - Guía de deployment                                           │
+│ - ✅ OpenAPI/Swagger: springdoc-openapi 3.1.1 agregado,         │
+│   /v3/api-docs y /swagger-ui/index.html habilitados y          │
+│   permitidos en SecurityConfig; verificado en vivo (200 OK)    │
+│   con perfil test (H2), 7 controladores con @Tag               │
+│ - ✅ README.md (raíz): arquitectura, stack, setup, cómo correr  │
+│   backend/frontend, tests, link a Swagger, roles del sistema   │
+│ - ✅ docs/DEPLOYMENT.md: esquema de referencia de MySQL, vars   │
+│   de entorno de producción, build/ejecución, checklist de      │
+│   seguridad, ajustes localhost→dominio real pendientes de      │
+│   autorización                                                  │
+│ - ✅ docs/MANUAL_USUARIO.md: guía funcional por rol (Visitante, │
+│   Usuario, Administrador) y mensajes de error comunes           │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -237,6 +266,10 @@
 | Sin validación de duplicados | 3 | ReservaService + InscripcionService | ✅ FIXED |
 | Sin validación de capacidad | 3 | ReservaService + InscripcionService | ✅ FIXED |
 | Tipos de datos inconsistentes | 3 | LocalTime methods | ✅ FIXED |
+| Reserva confirmaba éxito sin esperar al backend | 5 | async/await real + parseApiError | ✅ FIXED |
+| Mismatch de campos ClaseDTO en panel admin (nombre/nivel vs name/level) | 5 | mapClaseDesdeAPI() unificado | ✅ FIXED |
+| localStorage como fuente de verdad de canchas/clases (admin) | 5 | Eliminados SEED_*/loadData/saveData | ✅ FIXED |
+| Respuestas de API sin validar forma antes de .map/.find | 5 | Helper asArray() | ✅ FIXED |
 
 ---
 
@@ -269,9 +302,15 @@
 - `admin.html` - Panel admin
 
 ### Configuración
-- `pom.xml` - Dependencias Maven
+- `pom.xml` - Dependencias Maven (incluye springdoc-openapi 3.1.1)
 - `application.properties` - Config BD, logging
 - `AGENTS.md` - Reglas del proyecto
+
+### Documentación
+- `README.md` - Setup, cómo correr el proyecto, stack, roles
+- `docs/DEPLOYMENT.md` - Guía de despliegue a producción
+- `docs/MANUAL_USUARIO.md` - Manual funcional por rol
+- `http://localhost:8080/swagger-ui/index.html` - API interactiva (backend corriendo)
 
 ---
 
@@ -300,17 +339,18 @@ Build Tool: Maven
 6. [ ] Integration tests para endpoints (con base de datos real/H2)
 
 ### Fase 5: Frontend
-1. [ ] Eliminar 70+ console.log statements
-2. [ ] Actualizar llamadas API para nuevos DTOs
-3. [ ] Manejar errores 409 (duplicados, capacidad)
-4. [ ] Manejar errores 404 (recurso no encontrado)
-5. [ ] Validación de respuestas
+1. [x] Eliminar console.log statements
+2. [x] Actualizar llamadas API para nuevos DTOs (y corregir mismatches encontrados)
+3. [x] Manejar errores 409 (duplicados, capacidad)
+4. [x] Manejar errores 404 (recurso no encontrado)
+5. [x] Validación de respuestas
+6. [ ] Verificación E2E con backend + MySQL real corriendo (pendiente: acceso a DB_USERNAME/DB_PASSWORD locales)
 
 ### Fase 6: Documentación
-1. [ ] Generar OpenAPI/Swagger
-2. [ ] Actualizar README
-3. [ ] Guía de deployment
-4. [ ] Manual de usuario
+1. [x] Generar OpenAPI/Swagger
+2. [x] Actualizar README
+3. [x] Guía de deployment
+4. [x] Manual de usuario
 
 ---
 
@@ -333,11 +373,17 @@ SEGURIDAD    ████████████████████ ✅ 10
 ARQUITECTURA ████████████████████ ✅ 100%
 LÓGICA NEG.  ████████████████████ ✅ 100%
 TESTING      ████████████████░░░░ 🟡  80% (unit ✅ / integración ⏳)
-FRONTEND     ░░░░░░░░░░░░░░░░░░░░ ⏳   0%
-DOCUMENTAC.  ░░░░░░░░░░░░░░░░░░░░ ⏳   0%
+FRONTEND     ██████████████████░░ 🟡  90% (código ✅ / verificación E2E ⏳)
+DOCUMENTAC.  ████████████████████ ✅ 100%
 
-Progreso General: ████████████████░░░░░░ 63%
+Progreso General: ███████████████████░░ 95%
 ```
 
 **Último BUILD:** 2026-09-13 - BUILD SUCCESS ✅ (65/65 tests, 0 fallos, corre en CI)  
-**Próximo paso:** Fase 5 - Frontend (limpieza de console.log, manejo de errores 400/404/409)
+**Frontend:** console.log eliminados, errores 404/409 mostrados con el mensaje real del backend,
+respuestas de API validadas antes de usarse, mismatches de DTO en Clase corregidos, localStorage
+ya no es fuente de verdad de negocio.  
+**Documentación:** OpenAPI/Swagger habilitado y verificado en vivo, README.md, guía de
+deployment y manual de usuario creados.  
+**Próximo paso:** integration tests de Fase 4 y verificación E2E de Fase 5 contra MySQL real
+(ambos bloqueados hoy por falta de acceso a `DB_USERNAME`/`DB_PASSWORD` locales).

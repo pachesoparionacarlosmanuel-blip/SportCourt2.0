@@ -59,6 +59,13 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/login", "/api/csrf").permitAll()
                                                 .requestMatchers("/api/csrf").permitAll()
 
+                                                // Documentación OpenAPI / Swagger UI.
+                                                .requestMatchers(
+                                                                "/v3/api-docs/**",
+                                                                "/swagger-ui/**",
+                                                                "/swagger-ui.html")
+                                                .permitAll()
+
                                                 // Visitante (sin login): puede ver canchas y clases disponibles.
                                                 .requestMatchers(
                                                                 HttpMethod.GET,

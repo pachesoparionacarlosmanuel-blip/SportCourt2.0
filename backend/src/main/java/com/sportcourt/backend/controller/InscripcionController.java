@@ -4,6 +4,7 @@ import com.sportcourt.backend.dto.InscripcionDTO;
 import com.sportcourt.backend.model.Inscripcion;
 import com.sportcourt.backend.service.InscripcionService;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/inscripciones")
+@Tag(name = "Inscripciones", description = "Inscripción de usuarios a clases y consulta de sus inscripciones")
 public class InscripcionController {
 
     private final InscripcionService inscripcionService;

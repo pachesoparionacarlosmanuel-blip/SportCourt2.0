@@ -4,6 +4,7 @@ import com.sportcourt.backend.dto.ClaseDTO;
 import com.sportcourt.backend.model.Clase;
 import com.sportcourt.backend.service.ClaseService;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/clases")
+@Tag(name = "Clases", description = "Consulta y gestión de clases deportivas")
 public class ClaseController {
 
     private final ClaseService claseService;
