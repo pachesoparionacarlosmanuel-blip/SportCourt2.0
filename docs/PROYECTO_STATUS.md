@@ -148,6 +148,49 @@
 └────────────────────────────────────────────────────────────────┘
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
+│ FASE 1D: MAPEO DE ROL — BD/API/FRONTEND VS. SPRING SECURITY    │
+│ ✅ COMPLETADA — 2026-09-14                                     │
+│                                                                │
+│ Contrato del proyecto: la tabla `usuarios` (columna `rol`), la │
+│ API (DTOs) y el frontend usan SIEMPRE el valor de negocio en   │
+│ español y minúsculas — `"admin"` / `"usuario"` — nunca la      │
+│ representación interna de Spring Security. `LoginController`  │
+│ convierte ese valor a la authority `ROLE_<ROL EN MAYÚSCULAS>`  │
+│ (`"admin"` → `ROLE_ADMIN`) solo en memoria, al autenticar; ese │
+│ prefijo `ROLE_` nunca se guarda en la base de datos. Auditado  │
+│ el flujo completo (LoginController, SecurityConfig, DTOs,      │
+│ frontend, tests) sin encontrar ningún doble prefijo ni un      │
+│ `hasRole`/`hasAuthority` mal formado — el diseño ya estaba bien│
+│ implementado en la capa de seguridad. Se corrigieron 3 huecos: │
+│                                                                │
+│ - ✅ Fix: el fallback de `LoginController` para un usuario con │
+│   `rol` nulo/vacío pasa de `"USER"` (inglés) a `"usuario"`,    │
+│   consistente con el contrato — antes generaba ROLE_USER en    │
+│   vez de ROLE_USUARIO para esos casos (sin impacto funcional   │
+│   hoy porque ningún endpoint exige `hasRole("USUARIO")`, pero  │
+│   era una trampa latente)                                      │
+│ - ✅ Nuevo: `backend/src/main/resources/sql/                   │
+│   normalize_rol_usuarios.sql` — script versionado (no había    │
+│   ninguno en el repo; no hay Flyway/Liquibase ni data.sql)     │
+│   que normaliza valores históricos de `rol` inconsistentes     │
+│   (`'ADMIN'`, `'User'`, etc.) a `'admin'` / `'usuario'`         │
+│ - ✅ Fix en tests de integración: los fixtures de               │
+│   `crearUsuario(...)` en CanchaControllerTest,                 │
+│   ReservaControllerTest, ClaseControllerTest,                  │
+│   InscripcionControllerTest y UsuarioControllerTest guardaban  │
+│   `"ADMIN"`/`"USER"` (inglés) como valor del campo `rol` en    │
+│   BD — no coincidía con el contrato real que usa el frontend   │
+│   (`usuario.rol === 'admin'`). Corregido a `"admin"`/          │
+│   `"usuario"`; 47 tests re-verificados en verde                │
+│ - ℹ️ Sin cambios (a propósito): los tests unitarios de          │
+│   ReservaService e InscripcionService (`autenticarUsuario`)    │
+│   construyen la `Authentication` directamente con              │
+│   `"ROLE_" + rol` — ahí `"ADMIN"`/`"USER"` sí representa la    │
+│   authority de Spring Security, no el valor de BD, así que     │
+│   cambiarlos habría mezclado rol de negocio con authority      │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌────────────────────────────────────────────────────────────────┐
 │ FASE 5: FRONTEND                                               │
 │ ✅ COMPLETADA — 2026-09-14 (código + verificación E2E contra    │
 │    MySQL real vía backend levantado localmente)                 │
@@ -338,6 +381,9 @@
 | XSS almacenado: nombres/descripciones se insertaban sin escapar en innerHTML | 1C | Helper escapeHtml() en todas las vistas dinámicas | ✅ FIXED |
 | `AccessDeniedException` lanzada manualmente en ReservaController/ReservaService e InscripcionController/InscripcionService (chequeo de propietario) no tiene `@ExceptionHandler` específico en `GlobalExceptionHandler` → cae al handler genérico y respondía **500** en vez de 403/404 cuando un usuario consulta/cancela la reserva o inscripción de otro | 4 (integration tests) | `@ExceptionHandler(AccessDeniedException.class)` → 403 en GlobalExceptionHandler | ✅ FIXED — 2026-09-14 |
 | `NullPointerException` al crear una reserva sobre una cancha con `capacidad` NULL en MySQL (p. ej. canchas reales id 1 y 2): el service hacía unboxing de `capacidadTotal` sin verificar null → 500 en vez de manejarlo como dato faltante | 5 (E2E contra MySQL real) | `ReservaService.validarCapacidadDisponible`: capacidad NULL se trata como 1 (uso exclusivo, comportamiento legado) | ✅ FIXED — 2026-09-14 |
+| Fallback de rol vacío/nulo en `LoginController` usaba `"USER"` (inglés) en vez de `"usuario"`, inconsistente con el contrato de negocio BD/API/frontend | 1D | `rol = "usuario"` en `LoginController` | ✅ FIXED — 2026-09-14 |
+| No existía script versionado para normalizar valores históricos inconsistentes de `rol` en MySQL (`'ADMIN'`, `'User'`, etc.) — la limpieza solo se había hecho manualmente contra la BD, sin quedar en el repo | 1D | `backend/src/main/resources/sql/normalize_rol_usuarios.sql` | ✅ FIXED — 2026-09-14 |
+| Fixtures de 5 suites de integration tests (`crearUsuario(...)`) guardaban `"ADMIN"`/`"USER"` (inglés) como valor del campo `rol`, sin reflejar el contrato real (`"admin"`/`"usuario"`) que usa el frontend | 1D | Fixtures actualizados a `"admin"`/`"usuario"` en CanchaControllerTest, ReservaControllerTest, ClaseControllerTest, InscripcionControllerTest, UsuarioControllerTest | ✅ FIXED — 2026-09-14 |
 
 ---
 
@@ -361,6 +407,8 @@
 ### Base de Datos
 - `sportcourt` (MySQL)
   - usuarios, canchas, clases, reservas, inscripciones
+- `backend/src/main/resources/sql/normalize_rol_usuarios.sql` — script manual (no hay
+  Flyway/Liquibase) para normalizar valores históricos de `usuarios.rol` a `admin`/`usuario`
 
 ### Frontend (HTML/CSS/JS) — `frontend/`
 - `frontend/index.html` - Home
@@ -481,5 +529,17 @@ datos residuales (conteos de tablas verificados idénticos antes/después).
 2. Crear una reserva sobre una cancha con `capacidad` NULL en MySQL (canchas reales id 1 y 2)
    lanzaba `NullPointerException` → 500. Fix: `ReservaService` trata `capacidad` NULL como 1.
    Ambos con tests de regresión (unit + integration) y reverificados en vivo contra el MySQL real.  
+**Mapeo de roles (Fase 1D, 2026-09-14):** auditoría completa del contrato de dos capas
+BD/API/frontend (`"admin"`/`"usuario"`, minúsculas y en español) vs. authority interna de
+Spring Security (`ROLE_ADMIN`/`ROLE_USUARIO`, construida solo en memoria en `LoginController`).
+La capa de seguridad ya estaba bien implementada (sin doble prefijo, sin `hasRole` mal
+formado); se corrigieron 3 huecos menores: el fallback de rol vacío en `LoginController`
+(`"USER"` → `"usuario"`), un script SQL versionado nuevo para normalizar valores históricos de
+`rol` (`backend/src/main/resources/sql/normalize_rol_usuarios.sql`, no existía ninguno en el
+repo), y los fixtures de 5 suites de integration tests que usaban `"ADMIN"`/`"USER"` como valor
+de BD en vez de `"admin"`/`"usuario"`. No se tocaron los tests unitarios de ReservaService/
+InscripcionService que usan `"ROLE_" + rol` para construir la `Authentication` directamente:
+ahí `"ADMIN"`/`"USER"` sí es la authority de Spring Security, no el valor de negocio. 47 tests
+re-verificados en verde tras el cambio.  
 **Próximo paso:** ninguno bloqueante — proyecto al 100% en las 7 fases, sin issues abiertos
 conocidos.

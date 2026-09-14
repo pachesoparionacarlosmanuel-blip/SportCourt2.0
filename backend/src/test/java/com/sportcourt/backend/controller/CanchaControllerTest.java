@@ -91,7 +91,7 @@ class CanchaControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/canchas como ADMIN crea la cancha (201)")
     void crearCanchaComoAdmin() throws Exception {
         String email = uniqueEmail("cancha-admin");
-        crearUsuario(email, "AdminPass123", "ADMIN");
+        crearUsuario(email, "AdminPass123", "admin");
         Session session = login(email, "AdminPass123");
 
         Map<String, Object> dto = Map.of(
@@ -116,7 +116,7 @@ class CanchaControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/canchas con campos requeridos vacíos devuelve 400")
     void crearCanchaConDatosInvalidosDevuelve400() throws Exception {
         String email = uniqueEmail("cancha-admin-invalido");
-        crearUsuario(email, "AdminPass123", "ADMIN");
+        crearUsuario(email, "AdminPass123", "admin");
         Session session = login(email, "AdminPass123");
 
         // "name" y "location" en blanco disparan @NotBlank; "price" y
@@ -155,7 +155,7 @@ class CanchaControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/canchas como usuario sin rol ADMIN devuelve 403")
     void crearCanchaComoUsuarioNoAdminDevuelve403() throws Exception {
         String email = uniqueEmail("cancha-user");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Map<String, Object> dto = Map.of(
@@ -171,7 +171,7 @@ class CanchaControllerTest extends AbstractControllerTest {
     @DisplayName("PUT /api/canchas/{id} como ADMIN actualiza la cancha")
     void actualizarCanchaComoAdmin() throws Exception {
         String email = uniqueEmail("cancha-admin-put");
-        crearUsuario(email, "AdminPass123", "ADMIN");
+        crearUsuario(email, "AdminPass123", "admin");
         Session session = login(email, "AdminPass123");
 
         Map<String, Object> dto = Map.of(
@@ -190,7 +190,7 @@ class CanchaControllerTest extends AbstractControllerTest {
     @DisplayName("DELETE /api/canchas/{id} como ADMIN elimina la cancha (204)")
     void eliminarCanchaComoAdmin() throws Exception {
         String email = uniqueEmail("cancha-admin-delete");
-        crearUsuario(email, "AdminPass123", "ADMIN");
+        crearUsuario(email, "AdminPass123", "admin");
         Session session = login(email, "AdminPass123");
 
         HttpResponse<String> response = mutate(session, "DELETE", "/api/canchas/" + canchaSeed.getId(), null);
@@ -203,7 +203,7 @@ class CanchaControllerTest extends AbstractControllerTest {
     @DisplayName("DELETE /api/canchas/{id} como usuario sin rol ADMIN devuelve 403")
     void eliminarCanchaComoUsuarioNoAdminDevuelve403() throws Exception {
         String email = uniqueEmail("cancha-user-delete");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         HttpResponse<String> response = mutate(session, "DELETE", "/api/canchas/" + canchaSeed.getId(), null);
