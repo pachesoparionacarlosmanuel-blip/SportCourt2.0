@@ -1031,7 +1031,7 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
         '<td>' + escapeHtml(r.item) + '</td>' +
         '<td>' + escapeHtml(r.date) + '<br><span style="color:var(--muted);font-size:0.8rem;">' + escapeHtml(r.time) + '</span></td>' +
         '<td>S/ ' + r.price + '</td>' +
-        '<td>' + r.status + '</td>' +
+        '<td>' + escapeHtml(r.status) + '</td>' +
         '<td>' +
         (cancelada ? '' : '<button class="cancel-item-btn" data-type="reservation" data-id="' + r.id + '">Cancelar</button> ') +
         '<button class="delete-item-btn" data-type="reservation" data-id="' + r.id + '">Eliminar</button>' +
