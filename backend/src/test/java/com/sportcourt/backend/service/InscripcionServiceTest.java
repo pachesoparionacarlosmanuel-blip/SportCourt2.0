@@ -175,6 +175,24 @@ public class InscripcionServiceTest {
         verify(inscripcionRepository).findAll();
     }
 
+    @Test
+    @DisplayName("🔒 SEGURIDAD: Un administrador no puede inscribirse a una clase")
+    void crearInscripcionRechazadaParaAdmin() {
+
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                "admin@test.com",
+                null,
+                List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // Act & Assert
+        assertThrows(BusinessException.class, () -> {
+            inscripcionService.crearInscripcion(validInscripcionDTO);
+        });
+
+        verify(inscripcionRepository, never()).save(any());
+    }
+
     // ==================== TESTS DE ERROR - VALIDACIÓN 1 ====================
 
     @Test

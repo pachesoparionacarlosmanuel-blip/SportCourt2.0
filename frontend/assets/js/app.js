@@ -338,6 +338,49 @@ if (courtsGrid) {
 }
 
 // ---------------------------------------------
+// Clases: renderizado dinámico desde la API (clases.html)
+// ---------------------------------------------
+let clasesPublicAPI = null;
+
+const classesGrid = document.getElementById('classes-grid');
+if (classesGrid) {
+
+  function renderPublicClasses() {
+    const clases = clasesPublicAPI;
+    if (!Array.isArray(clases) || clases.length === 0) return;
+
+    classesGrid.innerHTML = clases.map(function (k) {
+      return '<article class=\"class-card\">' +
+        '<div class=\"class-top\">' +
+        '<div class=\"class-icon\">' + k.icon + '</div>' +
+        '<span class=\"class-slots ' + (k.slots <= 3 ? 'low' : 'ok') + '\">' + k.slots + ' cupos</span>' +
+        '</div>' +
+        '<h3>' + escapeHtml(k.name) + '</h3>' +
+        '<p class=\"class-level\">' + escapeHtml(k.level) + '</p>' +
+        '<div class=\"class-meta\">' +
+        '<div class=\"class-meta-row\"><span class=\"meta-icon\">🕒</span> ' + escapeHtml(k.schedule) + '</div>' +
+        '<div class=\"class-meta-row\"><span class=\"meta-icon\">👨‍🏫</span> Prof. ' + escapeHtml(k.professor) + '</div>' +
+        '</div>' +
+        '<div class=\"class-footer\">' +
+        '<div class=\"class-price\">S/ ' + k.price + ' <span>/mes</span></div>' +
+        '<button class=\"enroll-btn\" data-id=\"' + k.id + '\">Inscribirse</button>' +
+        '</div>' +
+        '</article>';
+    }).join('');
+
+    wireEnrollButtons();
+    cargarEstadoInscripciones();
+  }
+
+  cargarClasesDesdeAPI().then(function (clases) {
+    if (Array.isArray(clases) && clases.length > 0) {
+      clasesPublicAPI = clases.map(mapClaseDesdeAPI);
+      renderPublicClasses();
+    }
+  });
+}
+
+// ---------------------------------------------
 // Reservas: calendario + horarios + persistencia local
 // ---------------------------------------------
 const reservationModal = document.getElementById('reservation-modal');
@@ -653,6 +696,14 @@ if (reservasList) {
 async function cargarEstadoInscripciones() {
   const currentUserId = Number(localStorage.getItem('sportcourt_user_id'));
 
+  if (getRole() === 'admin') {
+    document.querySelectorAll('.enroll-btn').forEach(function (btn) {
+      btn.textContent = 'No disponible para admin';
+      btn.disabled = true;
+    });
+    return;
+  }
+
   if (!currentUserId || getRole() === 'invitado') {
     return;
   }
@@ -692,56 +743,64 @@ async function cargarEstadoInscripciones() {
   }
 }
 
-document.querySelectorAll('.enroll-btn').forEach(function (btn) {
-  btn.addEventListener('click', async function () {
+function wireEnrollButtons() {
+  document.querySelectorAll('.enroll-btn').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
 
-    if (getRole() === 'invitado') {
-      window.location.href = 'login.html';
-      return;
-    }
-
-    const claseId = Number(btn.dataset.id);
-
-    const inscripcion = {
-      usuarioId: Number(localStorage.getItem('sportcourt_user_id')),
-      claseId: claseId,
-      fecha: new Date().toISOString().split('T')[0],
-      estado: 'inscrita'
-    };
-
-    try {
-      const respuesta = await fetch(API_URL + '/inscripciones', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-XSRF-TOKEN': await getCsrfTokenAsync()
-        },
-        body: JSON.stringify(inscripcion)
-      });
-
-      if (!respuesta.ok) {
-        alert(await parseApiError(respuesta, 'No se pudo guardar la inscripción.'));
+      if (getRole() === 'invitado') {
+        window.location.href = 'login.html';
         return;
       }
 
-      await respuesta.json();
+      if (getRole() === 'admin') {
+        alert('Los administradores no pueden inscribirse a clases.');
+        return;
+      }
 
-      btn.textContent = 'Inscrito ✓';
-      btn.classList.add('enrolled');
-      btn.disabled = true;
+      const claseId = Number(btn.dataset.id);
 
-      alert('¡Inscripción realizada correctamente!');
+      const inscripcion = {
+        usuarioId: Number(localStorage.getItem('sportcourt_user_id')),
+        claseId: claseId,
+        fecha: new Date().toISOString().split('T')[0],
+        estado: 'inscrita'
+      };
 
-    } catch (error) {
-      console.error('Error al guardar la inscripción:', error);
-      alert('No se pudo guardar la inscripción.');
-    }
+      try {
+        const respuesta = await fetch(API_URL + '/inscripciones', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-XSRF-TOKEN': await getCsrfTokenAsync()
+          },
+          body: JSON.stringify(inscripcion)
+        });
+
+        if (!respuesta.ok) {
+          alert(await parseApiError(respuesta, 'No se pudo guardar la inscripción.'));
+          return;
+        }
+
+        await respuesta.json();
+
+        btn.textContent = 'Inscrito ✓';
+        btn.classList.add('enrolled');
+        btn.disabled = true;
+
+        alert('¡Inscripción realizada correctamente!');
+
+      } catch (error) {
+        console.error('Error al guardar la inscripción:', error);
+        alert('No se pudo guardar la inscripción.');
+      }
+    });
   });
-});
+}
 
 // Recuperar el estado guardado en MySQL al cargar la página
 if (document.querySelectorAll('.enroll-btn').length > 0) {
+  wireEnrollButtons();
   cargarEstadoInscripciones();
 }
 if (document.getElementById('inscripciones-list')) {
@@ -905,6 +964,7 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
           sport: c.sport,
           name: c.name,
           desc: c.description || '',
+          location: c.location || '',
           price: Number(c.price),
           capacity: Number(c.capacity),
           image: c.image || '',
@@ -916,6 +976,15 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
     }
   });
   let classes = [];
+
+  // Cargar clases desde MySQL
+  cargarClasesDesdeAPI().then(function (clases) {
+    if (clases.length > 0) {
+      classes = clases.map(mapClaseDesdeAPI);
+      renderClasses();
+    }
+  });
+
   let reservations = [];
 
   // Cargar reservas desde MySQL (todas, porque el panel corre como ADMIN)
@@ -1052,7 +1121,7 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
   const formPanelInner = document.getElementById('form-panel-inner');
 
   function openCourtForm(existing) {
-    const c = existing || { sport: 'fulbito', name: '', desc: '', price: '', capacity: '', image: '', status: 'disponible' };
+    const c = existing || { sport: 'fulbito', name: '', desc: '', location: '', price: '', capacity: '', image: '', status: 'disponible' };
     formPanelInner.innerHTML =
       '<h2>' + (existing ? 'Editar cancha' : 'Agregar cancha') + '</h2>' +
       '<form id="item-form">' +
@@ -1062,6 +1131,7 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
         return '<option value="' + s + '"' + (c.sport === s ? ' selected' : '') + '>' + (sportLabels[s] || s) + '</option>';
       }).join('') +
       '</select></div>' +
+      '<div class="field"><label>Ubicación</label><input type="text" id="f-location" value="' + escapeHtml(c.location || '') + '" required></div>' +
       '<div class="field"><label>Descripción</label><input type="text" id="f-desc" value="' + escapeHtml(c.desc || '') + '"></div>' +
       '<div class="field"><label>Precio por hora (S/)</label><input type="number" id="f-price" value="' + c.price + '" required></div>' +
       '<div class="field"><label>Capacidad</label><input type="number" id="f-capacity" value="' + c.capacity + '" required></div>' +
@@ -1084,6 +1154,7 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
         id: existing ? existing.id : 'c' + Date.now(),
         name: document.getElementById('f-name').value,
         sport: document.getElementById('f-sport').value,
+        location: document.getElementById('f-location').value,
         desc: document.getElementById('f-desc').value,
         price: Number(document.getElementById('f-price').value),
         capacity: Number(document.getElementById('f-capacity').value),
@@ -1106,6 +1177,7 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
           body: JSON.stringify({
             sport: data.sport,
             name: data.name,
+            location: data.location,
             description: data.desc,
             price: data.price,
             capacity: data.capacity,
@@ -1129,6 +1201,7 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
             sport: c.sport,
             name: c.name,
             desc: c.description || '',
+            location: c.location || '',
             price: Number(c.price),
             capacity: Number(c.capacity),
             image: c.image || '',
