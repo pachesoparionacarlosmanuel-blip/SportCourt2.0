@@ -1,6 +1,6 @@
 # SportCourt 2.0 - Estado del Proyecto
 
-**Última Actualización:** 2026-09-08 13:40  
+**Última Actualización:** 2026-09-13  
 **Compilación Actual:** BUILD SUCCESS ✅
 
 ---
@@ -68,12 +68,29 @@
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
 │ FASE 4: TESTING Y VALIDACIÓN                                  │
-│ ⏳ PENDIENTE                                                   │
+│ ✅ COMPLETADA (unit tests) — ⏳ integración pendiente          │
 │                                                                │
-│ - Unit tests para cada servicio                               │
-│ - Integration tests para endpoints                             │
-│ - Pruebas de duplicados y capacidad                            │
-│ - Pruebas de error handling                                    │
+│ - ✅ 64 unit tests (JUnit 5 + Mockito), 0 fallos               │
+│ - ✅ Pruebas de duplicados y superposición de horarios         │
+│ - ✅ Pruebas de capacidad/cupos                                │
+│ - ✅ Pruebas de autorización por propietario (Reserva)         │
+│ - ⏳ Integration tests para endpoints (con MySQL/H2 real)      │
+│                                                                │
+│ Ver detalle en FASE4_TESTING.md                                │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌────────────────────────────────────────────────────────────────┐
+│ FASE 1B: ENDURECIMIENTO DE SEGURIDAD (post-Fase 1)             │
+│ ✅ COMPLETADA — 2026-09-13                                     │
+│                                                                │
+│ - ✅ Protección CSRF con cookie token (`/api/csrf`)            │
+│ - ✅ Autorización por propietario en /api/reservas/{id}        │
+│   (un usuario solo ve/cancela sus propias reservas; ADMIN      │
+│   puede ver todas)                                             │
+│ - ✅ Autorización por rol reforzada en SecurityConfig          │
+│   (ADMIN vs autenticado, por método HTTP)                      │
+│ - ✅ UsuarioService.obtenerUsuarioPorEmail para resolver al     │
+│   usuario autenticado desde el contexto de seguridad           │
 └────────────────────────────────────────────────────────────────┘
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
@@ -103,11 +120,9 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Archivos Java creados** | 27 |
-| **Líneas de código añadidas** | 1,271 |
-| **Compilaciones exitosas** | 3 |
-| **Errores detectados y corregidos** | 3 |
-| **Tiempo total compilación** | 31.192 segundos |
+| **Archivos Java (main)** | 38 |
+| **Archivos Java (test)** | 6 |
+| **Tests unitarios** | 64 (0 fallos) |
 | **Servicios implementados** | 5 |
 | **Validaciones críticas** | 9 |
 | **Controladores actualizados** | 5 |
@@ -168,8 +183,11 @@
 | Aspecto | Estado | Detalle |
 |--------|--------|---------|
 | **Contraseñas** | ✅ BCrypt | Strength 10, nunca en respuestas |
-| **Credenciales BD** | ✅ Vars.Env | No hardcodeadas |
-| **CORS** | ✅ Restringido | localhost:3000, :5500 |
+| **Credenciales BD** | ✅ Vars.Env | Sin default, obligatorias (`DB_USERNAME`/`DB_PASSWORD`) |
+| **CORS** | ✅ Restringido | localhost:5500 / 127.0.0.1:5500 |
+| **CSRF** | ✅ Cookie token | Endpoint `/api/csrf`, `CookieCsrfTokenRepository` |
+| **Autorización por rol** | ✅ SecurityConfig | ADMIN vs autenticado, por ruta y método HTTP |
+| **Autorización por propietario** | ✅ ReservaController | Usuario solo accede a sus propias reservas (ADMIN ve todas) |
 | **Input Validation** | ✅ DTOs | @NotNull, @Email, @Size, etc. |
 | **SQL Logging** | ✅ Deshabilitado | No expone queries |
 | **Error Handling** | ✅ Genérico | No expone detalles técnicos |
@@ -224,13 +242,14 @@
 ### Backend Java
 - `backend/src/main/java/com/sportcourt/backend/`
   - `config/` - SecurityConfig, CorsConfig
-  - `controller/` - 6 controladores actualizados
-  - `service/` - 5 servicios con lógica de negocio ⭐
+  - `controller/` - 7 controladores (Cancha, Clase, Csrf, Inscripcion, Login, Reserva, Usuario)
+  - `service/` - 5 servicios con lógica de negocio ⭐ + AuthService
   - `model/` - 5 entities JPA
   - `repository/` - 5 repositories
-  - `dto/` - 6 DTOs con validación
-  - `exception/` - ErrorResponse, ResourceNotFoundException, BusinessException
+  - `dto/` - 8 DTOs con validación
+  - `exception/` - ErrorResponse, ResourceNotFoundException, BusinessException, GlobalExceptionHandler
   - `BackendApplication.java` - Main app
+- `backend/src/test/java/com/sportcourt/backend/service/` - 5 suites de unit tests (64 tests)
 
 ### Base de Datos
 - `sportcourt` (MySQL)
@@ -241,8 +260,7 @@
 - `login.html` - Autenticación
 - `canchas.html` - Listado canchas
 - `clases.html` - Listado clases
-- `reservas.html` - Mis reservas
-- `inscripciones.html` - Mis inscripciones
+- `reservas.html` - Mis reservas (incluye inscripciones a clases)
 - `perfil.html` - Perfil usuario
 - `admin.html` - Panel admin
 
@@ -269,13 +287,13 @@ Build Tool: Maven
 
 ## 🎯 Próximas Acciones (Orden Prioritario)
 
-### Fase 4: Testing
-1. [ ] Crear unit tests para UsuarioService
-2. [ ] Crear unit tests para CanchaService
-3. [ ] Crear unit tests para ClaseService
-4. [ ] Crear unit tests para ReservaService (validaciones)
-5. [ ] Crear unit tests para InscripcionService (validaciones)
-6. [ ] Integration tests para endpoints
+### Fase 4: Testing (pendiente restante)
+1. [x] Crear unit tests para UsuarioService
+2. [x] Crear unit tests para CanchaService
+3. [x] Crear unit tests para ClaseService
+4. [x] Crear unit tests para ReservaService (validaciones)
+5. [x] Crear unit tests para InscripcionService (validaciones)
+6. [ ] Integration tests para endpoints (con base de datos real/H2)
 
 ### Fase 5: Frontend
 1. [ ] Eliminar 70+ console.log statements
@@ -310,12 +328,12 @@ Según AGENTS.md:
 SEGURIDAD    ████████████████████ ✅ 100%
 ARQUITECTURA ████████████████████ ✅ 100%
 LÓGICA NEG.  ████████████████████ ✅ 100%
-TESTING      ░░░░░░░░░░░░░░░░░░░░ ⏳   0%
+TESTING      ████████████████░░░░ 🟡  80% (unit ✅ / integración ⏳)
 FRONTEND     ░░░░░░░░░░░░░░░░░░░░ ⏳   0%
 DOCUMENTAC.  ░░░░░░░░░░░░░░░░░░░░ ⏳   0%
 
-Progreso General: ████████████░░░░░░░░░░ 50%
+Progreso General: ████████████████░░░░░░ 63%
 ```
 
-**Último BUILD:** 2026-09-08 13:40 - BUILD SUCCESS ✅  
-**Próximo paso:** Fase 4 - Testing y Validación
+**Último BUILD:** 2026-09-13 - BUILD SUCCESS ✅ (64/64 unit tests, 0 fallos)  
+**Próximo paso:** Fase 5 - Frontend (limpieza de console.log, manejo de errores 400/404/409)

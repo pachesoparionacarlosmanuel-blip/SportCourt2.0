@@ -1,15 +1,23 @@
-# ✅ FASE 4: TESTING Y VALIDACIÓN - COMPLETADA
+# ✅ FASE 4: TESTING Y VALIDACIÓN - UNIT TESTS COMPLETADOS
+
+> **Actualizado 2026-09-13:** tras el endurecimiento de seguridad (CSRF +
+> autorización por propietario) se ampliaron los tests de `ReservaService`
+> e `InscripcionService`. Cifras verificadas ejecutando
+> `./mvnw test -Dtest=ReservaServiceTest,InscripcionServiceTest,CanchaServiceTest,ClaseServiceTest,UsuarioServiceTest`.
 
 ## 📋 Resumen Ejecutivo
 
 | Métrica | Valor |
 |---------|-------|
 | **Tests Unitarios Creados** | 5 suites de tests |
-| **Total de Tests** | 44 tests |
-| **Tests Pasados** | 44 ✅ |
+| **Total de Tests** | 64 tests |
+| **Tests Pasados** | 64 ✅ |
 | **Tests Fallidos** | 0 |
 | **Cobertura** | Servicios críticos (ReservaService, InscripcionService) |
-| **Tiempo de Ejecución** | 9.716 segundos |
+
+Nota: integration tests con contexto Spring completo (`BackendApplicationTests`)
+requieren `DB_USERNAME`/`DB_PASSWORD` configurados y una base `sportcourt`
+accesible; no están incluidos en el conteo de unit tests de arriba.
 
 ---
 
@@ -41,7 +49,7 @@
 ❌ **Casos de Error:**
 - Obtener clase no existente → ResourceNotFoundException
 
-### 3. **ReservaServiceTest** (12 tests)
+### 3. **ReservaServiceTest** (32 tests)
 
 ✅ **Casos de Éxito:**
 - Crear reserva exitosa con datos válidos
@@ -68,6 +76,21 @@
 
 **VALIDACIÓN 5: Capacidad no disponible**
 - Sin capacidad → BusinessException ✓
+
+**VALIDACIÓN 6 (nueva): Autorización por propietario al cancelar**
+- Usuario NO puede cancelar la reserva de otro usuario → BusinessException/AccessDenied ✓
+
+**Ampliación (nueva): Actualizar reserva (`actualizarReserva`)**
+- Conserva su propio horario sin marcarlo como duplicado ✓
+- Rechaza horario duplicado con otra reserva del mismo usuario ✓
+- Rechaza horario sin capacidad disponible ✓
+- Una reserva cancelada no bloquea el mismo horario ✓
+- No genera falso conflicto consigo misma ✓
+
+**Ampliación (nueva): Listado y borrado**
+- Lista todas las reservas correctamente ✓
+- Obtiene correctamente las reservas de un usuario ✓
+- Elimina una reserva existente ✓ / rechaza eliminar una inexistente ✓
 
 ### 4. **InscripcionServiceTest** (12 tests)
 
@@ -239,7 +262,7 @@ public class [Service]Test {
 
 | Servicio | Tests | Métodos Probados | Coverage |
 |----------|-------|------------------|----------|
-| ReservaService | 12 | crearReserva(), obtenerReserva(), cancelarReserva() | 100% |
+| ReservaService | 32 | crearReserva(), obtenerReserva(), actualizarReserva(), cancelarReserva(), listarReservas(), eliminarReserva() | 100% |
 | InscripcionService | 12 | crearInscripcion(), obtenerInscripcion(), cancelarInscripcion() | 100% |
 | CanchaService | 7 | crearCancha(), obtenerCancha(), listarCanchas(), actualizarCancha(), eliminarCancha() | 100% |
 | ClaseService | 7 | crearClase(), obtenerClase(), listarClases(), actualizarClase(), eliminarClase() | 100% |
@@ -260,11 +283,11 @@ public class [Service]Test {
 ## 📦 Archivos Creados/Modificados
 
 ### Creados (5 test suites)
-- ✅ ReservaServiceTest.java (312 líneas)
-- ✅ InscripcionServiceTest.java (262 líneas)
-- ✅ CanchaServiceTest.java (92 líneas)
-- ✅ ClaseServiceTest.java (92 líneas)
-- ✅ UsuarioServiceTest.java (118 líneas)
+- ✅ ReservaServiceTest.java (1588 líneas — ampliado con tests de actualización, listado y autorización por propietario)
+- ✅ InscripcionServiceTest.java (403 líneas)
+- ✅ CanchaServiceTest.java (142 líneas)
+- ✅ ClaseServiceTest.java (142 líneas)
+- ✅ UsuarioServiceTest.java (116 líneas)
 
 ### Configuración de Tests
 - ✅ application-test.properties (H2 database)
@@ -275,17 +298,17 @@ public class [Service]Test {
 ## 🏆 Estado Final
 
 ```
-✅ FASE 4 COMPLETADA
+✅ FASE 4 (UNIT TESTS) COMPLETADA — integración pendiente
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Fase 1: Seguridad                 — 100%
+✅ Fase 1: Seguridad (+ endurecimiento CSRF/autorización) — 100%
 ✅ Fase 2: Arquitectura (DTOs)       — 100%
 ✅ Fase 3: Lógica de Negocio (Services) — 100%
-✅ Fase 4: Testing (Unit Tests)      — 100%
+✅ Fase 4: Testing (64 unit tests)   — 100% unit / integración ⏳
 
 ⏳ Fase 5: Frontend (JavaScript)     — PENDIENTE
 ⏳ Fase 6: Documentación (OpenAPI)   — PENDIENTE
 
-Progreso Total: 60%
+Progreso Total: ~63%
 ```
 
 ---
@@ -293,9 +316,8 @@ Progreso Total: 60%
 ## 📊 Estadísticas
 
 - **Archivos de test**: 5
-- **Tests totales**: 44
-- **Líneas de código de tests**: 876
+- **Tests totales**: 64
+- **Líneas de código de tests**: 2,391
 - **Cobertura**: Todos los servicios críticos
 - **Tasa de éxito**: 100%
-- **Tiempo de ejecución**: ~10 segundos
 
