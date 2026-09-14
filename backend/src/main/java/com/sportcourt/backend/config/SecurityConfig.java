@@ -59,6 +59,13 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/login", "/api/csrf").permitAll()
                                                 .requestMatchers("/api/csrf").permitAll()
 
+                                                // Visitante (sin login): puede ver canchas y clases disponibles.
+                                                .requestMatchers(
+                                                                HttpMethod.GET,
+                                                                "/api/canchas/**",
+                                                                "/api/clases/**")
+                                                .permitAll()
+
                                                 // Archivos del frontend.
                                                 .requestMatchers(
                                                                 "/",

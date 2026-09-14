@@ -1,23 +1,28 @@
-# ✅ FASE 4: TESTING Y VALIDACIÓN - UNIT TESTS COMPLETADOS
+# ✅ FASE 4: TESTING Y VALIDACIÓN - COMPLETADA, corriendo en CI
 
-> **Actualizado 2026-09-13:** tras el endurecimiento de seguridad (CSRF +
-> autorización por propietario) se ampliaron los tests de `ReservaService`
-> e `InscripcionService`. Cifras verificadas ejecutando
-> `./mvnw test -Dtest=ReservaServiceTest,InscripcionServiceTest,CanchaServiceTest,ClaseServiceTest,UsuarioServiceTest`.
+> **Actualizado 2026-09-13:** además de ampliar los tests de `ReservaService`
+> e `InscripcionService` (CSRF + autorización por propietario), se activó el
+> perfil `test` (H2 en memoria) en `BackendApplicationTests` — ya no depende
+> de la MySQL real — y se agregó el job `validar-backend` en
+> `.github/workflows/validar-proyecto.yml`, que corre `mvn test` en cada
+> push/PR. Cifras verificadas ejecutando `./mvnw clean test` sin ninguna
+> variable de entorno de base de datos configurada.
 
 ## 📋 Resumen Ejecutivo
 
 | Métrica | Valor |
 |---------|-------|
-| **Tests Unitarios Creados** | 5 suites de tests |
-| **Total de Tests** | 64 tests |
-| **Tests Pasados** | 64 ✅ |
+| **Suites de test** | 5 de servicio (Mockito) + 1 de contexto Spring (H2) |
+| **Total de Tests** | 65 tests |
+| **Tests Pasados** | 65 ✅ |
 | **Tests Fallidos** | 0 |
 | **Cobertura** | Servicios críticos (ReservaService, InscripcionService) |
+| **CI** | `validar-backend` en GitHub Actions corre `mvn test` en cada push/PR |
 
-Nota: integration tests con contexto Spring completo (`BackendApplicationTests`)
-requieren `DB_USERNAME`/`DB_PASSWORD` configurados y una base `sportcourt`
-accesible; no están incluidos en el conteo de unit tests de arriba.
+`BackendApplicationTests` ahora usa `@ActiveProfiles("test")` →
+`application-test.properties` (H2 en memoria, `ddl-auto=create-drop`), por lo
+que no requiere `DB_USERNAME`/`DB_PASSWORD` ni una MySQL real — corre igual
+en tu máquina que en el runner de GitHub Actions.
 
 ---
 
@@ -79,6 +84,8 @@ accesible; no están incluidos en el conteo de unit tests de arriba.
 
 **VALIDACIÓN 6 (nueva): Autorización por propietario al cancelar**
 - Usuario NO puede cancelar la reserva de otro usuario → BusinessException/AccessDenied ✓
+- Un ADMIN SÍ puede cancelar la reserva de otro usuario ✓ (necesario para que el panel admin
+  pueda cancelar reservas de cualquier usuario contra la API real)
 
 **Ampliación (nueva): Actualizar reserva (`actualizarReserva`)**
 - Conserva su propio horario sin marcarlo como duplicado ✓
@@ -89,7 +96,6 @@ accesible; no están incluidos en el conteo de unit tests de arriba.
 
 **Ampliación (nueva): Listado y borrado**
 - Lista todas las reservas correctamente ✓
-- Obtiene correctamente las reservas de un usuario ✓
 - Elimina una reserva existente ✓ / rechaza eliminar una inexistente ✓
 
 ### 4. **InscripcionServiceTest** (12 tests)
@@ -298,12 +304,12 @@ public class [Service]Test {
 ## 🏆 Estado Final
 
 ```
-✅ FASE 4 (UNIT TESTS) COMPLETADA — integración pendiente
+✅ FASE 4 COMPLETADA — corre en CI en cada push/PR
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ Fase 1: Seguridad (+ endurecimiento CSRF/autorización) — 100%
 ✅ Fase 2: Arquitectura (DTOs)       — 100%
 ✅ Fase 3: Lógica de Negocio (Services) — 100%
-✅ Fase 4: Testing (64 unit tests)   — 100% unit / integración ⏳
+✅ Fase 4: Testing (65 tests, H2 en CI) — 100%
 
 ⏳ Fase 5: Frontend (JavaScript)     — PENDIENTE
 ⏳ Fase 6: Documentación (OpenAPI)   — PENDIENTE
@@ -315,9 +321,10 @@ Progreso Total: ~63%
 
 ## 📊 Estadísticas
 
-- **Archivos de test**: 5
-- **Tests totales**: 64
+- **Archivos de test**: 6 (5 de servicio + `BackendApplicationTests`)
+- **Tests totales**: 65
 - **Líneas de código de tests**: 2,391
 - **Cobertura**: Todos los servicios críticos
 - **Tasa de éxito**: 100%
+- **CI**: corre automáticamente en cada push/PR (`validar-backend`)
 

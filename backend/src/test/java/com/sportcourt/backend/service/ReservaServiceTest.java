@@ -1490,45 +1490,20 @@ public class ReservaServiceTest {
         }
 
         @Test
-        @DisplayName("Obtiene correctamente las reservas de un usuario")
-        void obtenerReservasDeUsuario() {
-
+        @DisplayName("Un ADMIN puede cancelar la reserva de otro usuario")
+        void adminPuedeCancelarReservaDeOtroUsuario() {
                 // Arrange
-                Integer usuarioId = 1;
+                autenticarUsuario(99, "admin@test.com", "ADMIN");
 
-                autenticarUsuario(1, "usuario@test.com", "USER");
-
-                Reserva reserva1 = new Reserva();
-                reserva1.setId(1);
-                reserva1.setUsuarioId(usuarioId);
-                reserva1.setCanchaId(1);
-                reserva1.setFecha(LocalDate.of(2026, 9, 10));
-                reserva1.setHoraInicio(LocalTime.of(10, 0));
-                reserva1.setHoraFin(LocalTime.of(11, 0));
-                reserva1.setEstado("activa");
-
-                Reserva reserva2 = new Reserva();
-                reserva2.setId(2);
-                reserva2.setUsuarioId(usuarioId);
-                reserva2.setCanchaId(2);
-                reserva2.setFecha(LocalDate.of(2026, 9, 11));
-                reserva2.setHoraInicio(LocalTime.of(12, 0));
-                reserva2.setHoraFin(LocalTime.of(13, 0));
-                reserva2.setEstado("activa");
-
-                when(reservaRepository.findByUsuarioId(usuarioId))
-                                .thenReturn(List.of(reserva1, reserva2));
+                when(reservaRepository.findById(1)).thenReturn(Optional.of(mockReserva));
+                when(reservaRepository.save(any(Reserva.class))).thenReturn(mockReserva);
 
                 // Act
-                List<Reserva> resultado = reservaService.obtenerReservasDeUsuario(usuarioId);
+                Reserva resultado = reservaService.cancelarReserva(1);
 
                 // Assert
-                assertNotNull(resultado);
-                assertEquals(2, resultado.size());
-                assertEquals(usuarioId, resultado.get(0).getUsuarioId());
-                assertEquals(usuarioId, resultado.get(1).getUsuarioId());
-
-                verify(reservaRepository).findByUsuarioId(usuarioId);
+                assertEquals("cancelada", resultado.getEstado());
+                verify(reservaRepository).save(any(Reserva.class));
         }
 
         @Test

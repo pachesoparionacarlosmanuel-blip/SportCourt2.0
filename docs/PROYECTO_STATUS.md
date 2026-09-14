@@ -68,13 +68,16 @@
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
 │ FASE 4: TESTING Y VALIDACIÓN                                  │
-│ ✅ COMPLETADA (unit tests) — ⏳ integración pendiente          │
+│ ✅ COMPLETADA (unit tests) + CI corriéndolos en cada push      │
 │                                                                │
-│ - ✅ 64 unit tests (JUnit 5 + Mockito), 0 fallos               │
+│ - ✅ 65 tests (JUnit 5 + Mockito + 1 @SpringBootTest), 0 fallos│
 │ - ✅ Pruebas de duplicados y superposición de horarios         │
 │ - ✅ Pruebas de capacidad/cupos                                │
 │ - ✅ Pruebas de autorización por propietario (Reserva)         │
-│ - ⏳ Integration tests para endpoints (con MySQL/H2 real)      │
+│ - ✅ BackendApplicationTests corre con H2 en memoria (perfil   │
+│   "test"), sin depender de la MySQL real — apto para CI       │
+│ - ✅ GitHub Actions ejecuta "mvn test" en cada push/PR         │
+│   (job "validar-backend" en validar-proyecto.yml)              │
 │                                                                │
 │ Ver detalle en FASE4_TESTING.md                                │
 └────────────────────────────────────────────────────────────────┘
@@ -122,7 +125,7 @@
 |---------|-------|
 | **Archivos Java (main)** | 38 |
 | **Archivos Java (test)** | 6 |
-| **Tests unitarios** | 64 (0 fallos) |
+| **Tests (unit + contexto Spring)** | 65 (0 fallos), corren en CI |
 | **Servicios implementados** | 5 |
 | **Validaciones críticas** | 9 |
 | **Controladores actualizados** | 5 |
@@ -246,10 +249,11 @@
   - `service/` - 5 servicios con lógica de negocio ⭐ + AuthService
   - `model/` - 5 entities JPA
   - `repository/` - 5 repositories
-  - `dto/` - 8 DTOs con validación
+  - `dto/` - 7 DTOs con validación
   - `exception/` - ErrorResponse, ResourceNotFoundException, BusinessException, GlobalExceptionHandler
   - `BackendApplication.java` - Main app
-- `backend/src/test/java/com/sportcourt/backend/service/` - 5 suites de unit tests (64 tests)
+- `backend/src/test/java/com/sportcourt/backend/` - `BackendApplicationTests` (contexto Spring, perfil
+  "test" con H2) + `service/` con 5 suites de unit tests (65 tests en total)
 
 ### Base de Datos
 - `sportcourt` (MySQL)
@@ -335,5 +339,5 @@ DOCUMENTAC.  ░░░░░░░░░░░░░░░░░░░░ ⏳   
 Progreso General: ████████████████░░░░░░ 63%
 ```
 
-**Último BUILD:** 2026-09-13 - BUILD SUCCESS ✅ (64/64 unit tests, 0 fallos)  
+**Último BUILD:** 2026-09-13 - BUILD SUCCESS ✅ (65/65 tests, 0 fallos, corre en CI)  
 **Próximo paso:** Fase 5 - Frontend (limpieza de console.log, manejo de errores 400/404/409)

@@ -495,7 +495,6 @@ async function cargarReservasDesdeAPI() {
   }
 }
 
-function saveReservations(data) { localStorage.setItem('sportcourt_reservations', JSON.stringify(data)); }
 function reservationDateKey(r) {
   if (r.dateKey) return r.dateKey;
   const match = String(r.date || '').match(/(\d{1,2})\s+([A-Za-zÁÉÍÓÚáéíóú]+)\s+(\d{4})/i);
@@ -969,15 +968,6 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
     { id: 'k6', icon: '💧', name: 'Aqua Aeróbicos', level: 'Adultos mayores', schedule: 'Lun / Mié · 9:00am', professor: 'Carmen López', price: 130, slots: 6 }
   ];
 
-  const SEED_RESERVATIONS = [
-    { id: 'r1', user: 'carlos@email.com', item: 'Cancha de Fulbito A', date: '20 Agosto 2026', time: '19:00 — 20:00', price: 80, status: 'confirmada' },
-    { id: 'r2', user: 'carlos@email.com', item: 'Cancha de Tenis 1', date: '22 Agosto 2026', time: '08:00 — 10:00', price: 120, status: 'confirmada' },
-    { id: 'r3', user: 'carlos@email.com', item: 'Cancha de Fútbol 11', date: '01 Septiembre 2026', time: '16:00 — 17:00', price: 150, status: 'pendiente' },
-    { id: 'r4', user: 'carlos@email.com', item: 'Piscina Olímpica', date: '15 Julio 2026', time: '07:00 — 8:00', price: 45, status: 'cancelada' },
-    { id: 'r5', user: 'ana.quispe@email.com', item: 'Cancha de Tenis 2', date: '25 Agosto 2026', time: '18:00 — 19:00', price: 65, status: 'confirmada' },
-    { id: 'r6', user: 'luis.vera@email.com', item: 'Piscina Olímpica', date: '28 Agosto 2026', time: '06:00 — 07:00', price: 45, status: 'pendiente' }
-  ];
-
   function loadData(key, seed) {
     const raw = localStorage.getItem(key);
     if (raw) return JSON.parse(raw);
@@ -1018,7 +1008,53 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
     }
   });
   let classes = [];
-  let reservations = loadData('sportcourt_reservations', SEED_RESERVATIONS);
+  let reservations = [];
+
+  // Cargar reservas desde MySQL (todas, porque el panel corre como ADMIN)
+  async function cargarReservasAdminDesdeAPI() {
+    try {
+      const [respuestaReservas, respuestaCanchas, respuestaUsuarios] = await Promise.all([
+        fetch(API_URL + '/reservas', { credentials: 'include' }),
+        fetch(API_URL + '/canchas', { credentials: 'include' }),
+        fetch(API_URL + '/usuarios', { credentials: 'include' })
+      ]);
+
+      if (!respuestaReservas.ok || !respuestaCanchas.ok || !respuestaUsuarios.ok) {
+        throw new Error('Error HTTP al cargar reservas del panel admin');
+      }
+
+      const [reservas, canchas, usuarios] = await Promise.all([
+        respuestaReservas.json(),
+        respuestaCanchas.json(),
+        respuestaUsuarios.json()
+      ]);
+
+      return reservas.map(function (r) {
+        const cancha = canchas.find(function (c) { return String(c.id) === String(r.canchaId); });
+        const usuario = usuarios.find(function (u) { return String(u.id) === String(r.usuarioId); });
+
+        return {
+          id: String(r.id),
+          user: usuario ? (usuario.nombre + ' (' + usuario.email + ')') : ('Usuario #' + r.usuarioId),
+          item: cancha ? cancha.name : ('Cancha #' + r.canchaId),
+          date: r.fecha,
+          time: String(r.horaInicio).slice(0, 5) + ' — ' + String(r.horaFin).slice(0, 5),
+          price: cancha ? Number(cancha.price) : 0,
+          status: r.estado
+        };
+      });
+
+    } catch (error) {
+      console.error('Error al cargar reservas (panel admin):', error);
+      return [];
+    }
+  }
+
+  cargarReservasAdminDesdeAPI().then(function (data) {
+    reservations = data;
+    console.log('Panel Admin: reservas cargadas desde MySQL:', reservations);
+    renderReservations();
+  });
 
   const sportLabels = { fulbito: '⚽ Fulbito', futbol: '🏟️ Fútbol', tenis: '🎾 Tenis', piscina: '🏊 Piscina' };
 
@@ -1078,19 +1114,17 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
   const reservationsTableBody = document.getElementById('admin-reservations-body');
   function renderReservations() {
     reservationsTableBody.innerHTML = reservations.map(function (r) {
+      const cancelada = r.status === 'cancelada';
       return '<tr data-id="' + r.id + '">' +
         '<td>' + r.user + '</td>' +
         '<td>' + r.item + '</td>' +
         '<td>' + r.date + '<br><span style="color:var(--muted);font-size:0.8rem;">' + r.time + '</span></td>' +
         '<td>S/ ' + r.price + '</td>' +
+        '<td>' + r.status + '</td>' +
         '<td>' +
-        '<select class="status-select" data-id="' + r.id + '">' +
-        '<option value="confirmada"' + (r.status === 'confirmada' ? ' selected' : '') + '>Confirmada</option>' +
-        '<option value="pendiente"' + (r.status === 'pendiente' ? ' selected' : '') + '>Pendiente</option>' +
-        '<option value="cancelada"' + (r.status === 'cancelada' ? ' selected' : '') + '>Cancelada</option>' +
-        '</select>' +
+        (cancelada ? '' : '<button class="cancel-item-btn" data-type="reservation" data-id="' + r.id + '">Cancelar</button> ') +
+        '<button class="delete-item-btn" data-type="reservation" data-id="' + r.id + '">Eliminar</button>' +
         '</td>' +
-        '<td><button class="delete-item-btn" data-type="reservation" data-id="' + r.id + '">Eliminar</button></td>' +
         '</tr>';
     }).join('');
   }
@@ -1312,6 +1346,37 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
   document.addEventListener('click', async function (e) {
     const editBtn = e.target.closest('.edit-item-btn');
     const delBtn = e.target.closest('.delete-item-btn');
+    const cancelBtn = e.target.closest('.cancel-item-btn');
+
+    if (cancelBtn && cancelBtn.dataset.type === 'reservation') {
+      const id = cancelBtn.dataset.id;
+
+      if (!confirm('¿Seguro que deseas cancelar esta reserva?')) {
+        return;
+      }
+
+      try {
+        const respuesta = await fetch(API_URL + '/reservas/' + id + '/cancelar', {
+          method: 'PUT',
+          credentials: 'include'
+        });
+
+        if (!respuesta.ok) {
+          throw new Error('Error HTTP: ' + respuesta.status);
+        }
+
+        console.log('Reserva cancelada en MySQL:', id);
+
+        reservations = await cargarReservasAdminDesdeAPI();
+        renderReservations();
+
+        alert('Reserva cancelada correctamente.');
+
+      } catch (error) {
+        console.error('Error al cancelar la reserva:', error);
+        alert('No se pudo cancelar la reserva.');
+      }
+    }
 
     if (editBtn) {
       const id = editBtn.dataset.id;
@@ -1418,24 +1483,32 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
         // =========================
       } else if (delBtn.dataset.type === 'reservation') {
 
-        reservations = reservations.filter(function (r) {
-          return r.id !== id;
-        });
+        if (!confirm('¿Seguro que deseas eliminar esta reserva?')) {
+          return;
+        }
 
-        saveData('sportcourt_reservations', reservations);
-        renderReservations();
+        try {
+          const respuesta = await fetch(API_URL + '/reservas/' + id, {
+            method: 'DELETE',
+            credentials: 'include'
+          });
+
+          if (!respuesta.ok) {
+            throw new Error('Error HTTP: ' + respuesta.status);
+          }
+
+          console.log('Reserva eliminada de MySQL:', id);
+
+          reservations = await cargarReservasAdminDesdeAPI();
+          renderReservations();
+
+          alert('Reserva eliminada correctamente de MySQL.');
+
+        } catch (error) {
+          console.error('Error al eliminar la reserva:', error);
+          alert('No se pudo eliminar la reserva de MySQL.');
+        }
       }
-    }
-  });
-
-  // Cambiar estado de una reserva desde el <select>
-  document.addEventListener('change', function (e) {
-    if (e.target.classList.contains('status-select')) {
-      const id = e.target.dataset.id;
-      reservations = reservations.map(function (r) {
-        return r.id === id ? Object.assign({}, r, { status: e.target.value }) : r;
-      });
-      saveData('sportcourt_reservations', reservations);
     }
   });
 

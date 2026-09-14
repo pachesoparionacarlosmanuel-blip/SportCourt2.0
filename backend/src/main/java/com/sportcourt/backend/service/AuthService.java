@@ -31,23 +31,4 @@ public class AuthService {
             .filter(usuario -> passwordEncoder.matches(password, usuario.getPassword()))
             .orElse(null);
     }
-    /**
-     * Encripta una contraseña en texto plano
-     * 
-     * @param password Contraseña sin encriptar
-     * @return Contraseña encriptada
-     */
-    public String encryptPassword(String password) {
-        return passwordEncoder.encode(password);
-    }
-    /**
-     * Verifica si una contraseña coincide con su hash
-     * 
-     * @param rawPassword      Contraseña sin encriptar
-     * @param encodedPassword  Contraseña encriptada
-     * @return true si coinciden, false en caso contrario
-     */
-    public boolean verifyPassword(String rawPassword, String encodedPassword) {
-        return passwordEncoder.matches(rawPassword, encodedPassword);
-    }
 }
