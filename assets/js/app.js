@@ -353,39 +353,7 @@ async function cargarClasesDesdeAPI() {
 }
 
 let clasesDesdeAPI = [];
-let inscripcionesDesdeAPI = [];
 
-async function cargarInscripcionesDesdeAPI() {
-  try {
-    const respuesta = await fetch(API_URL + '/inscripciones', {
-      credentials: 'include'
-    });
-
-    if (!respuesta.ok) {
-      throw new Error('HTTP ' + respuesta.status);
-    }
-
-    inscripcionesDesdeAPI = asArray(await respuesta.json(), 'GET /inscripciones');
-    const currentUserId = localStorage.getItem('sportcourt_user_id');
-    document.querySelectorAll('.enroll-btn').forEach(function (btn) {
-      const claseId = Number(btn.dataset.id);
-      const yaInscrito = inscripcionesDesdeAPI.some(function (i) {
-        return String(i.usuarioId) === String(currentUserId)
-          && Number(i.claseId) === claseId
-          && i.estado === 'inscrita';
-      });
-
-      if (yaInscrito) {
-        btn.textContent = 'Inscrito ✓';
-        btn.classList.add('enrolled');
-        btn.disabled = true;
-      }
-    });
-
-  } catch (error) {
-    console.error('Error al cargar inscripciones:', error);
-  }
-}
 cargarClasesDesdeAPI().then(function (clases) {
   clasesDesdeAPI = clases.map(mapClaseDesdeAPI);
 
@@ -828,7 +796,6 @@ if (document.body.dataset.page === 'perfil') {
       return String(r.usuarioId) === String(currentUserId);
     });
 
-    const userInscripciones = [];
     const totalSpent = userReservations
       .filter(function (r) { return r.status !== 'cancelada'; })
       .reduce(function (sum, r) { return sum + Number(r.price || 0); }, 0);
