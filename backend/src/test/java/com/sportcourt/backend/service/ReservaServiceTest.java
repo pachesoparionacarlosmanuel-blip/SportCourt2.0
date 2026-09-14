@@ -1507,11 +1507,12 @@ public class ReservaServiceTest {
         }
 
         @Test
-        @DisplayName("Elimina una reserva existente correctamente")
+        @DisplayName("Elimina una reserva existente correctamente (dueño autenticado)")
         void eliminarReserva() {
 
                 // Arrange
                 Integer reservaId = 1;
+                autenticarUsuario(1, "usuario@test.com", "USER");
 
                 Reserva reserva = new Reserva();
                 reserva.setId(reservaId);
@@ -1550,6 +1551,43 @@ public class ReservaServiceTest {
 
                 verify(reservaRepository).findById(reservaId);
                 verify(reservaRepository, never()).deleteById(reservaId);
+        }
+
+        @Test
+        @DisplayName("Un usuario no puede eliminar la reserva de otro usuario")
+        void usuarioNoPuedeEliminarReservaDeOtroUsuario() {
+
+                // Arrange
+                Integer reservaId = 1;
+                autenticarUsuario(2, "otro@test.com", "USER");
+
+                when(reservaRepository.findById(reservaId))
+                                .thenReturn(Optional.of(mockReserva)); // mockReserva pertenece al usuario 1
+
+                // Act & Assert
+                assertThrows(
+                                org.springframework.security.access.AccessDeniedException.class,
+                                () -> reservaService.eliminarReserva(reservaId));
+
+                verify(reservaRepository, never()).deleteById(reservaId);
+        }
+
+        @Test
+        @DisplayName("Un ADMIN puede eliminar la reserva de otro usuario")
+        void adminPuedeEliminarReservaDeOtroUsuario() {
+
+                // Arrange
+                Integer reservaId = 1;
+                autenticarUsuario(99, "admin@test.com", "ADMIN");
+
+                when(reservaRepository.findById(reservaId))
+                                .thenReturn(Optional.of(mockReserva)); // mockReserva pertenece al usuario 1
+
+                // Act
+                reservaService.eliminarReserva(reservaId);
+
+                // Assert
+                verify(reservaRepository).deleteById(reservaId);
         }
 
         // ==================== HELPER METHODS ====================

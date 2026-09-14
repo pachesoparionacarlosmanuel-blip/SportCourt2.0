@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.http.HttpMethod;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 public class SecurityConfig {
@@ -24,14 +25,31 @@ public class SecurityConfig {
          * Configuración principal de seguridad.
          */
         @Bean
-        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
 
                 http
+                                // Conecta el CORS de CorsConfig.java con Spring Security para que
+                                // reconozca las peticiones preflight (OPTIONS) y las resuelva antes
+                                // de la cadena de autorización/sesión. Sin esto, cada preflight se
+                                // trata como una petición anónima más: se le crea una sesión nueva
+                                // (Set-Cookie: JSESSIONID) que pisa la cookie de sesión autenticada
+                                // del navegador justo antes de que salga la petición real, tumbando
+                                // cualquier llamada que dispare preflight (headers no "simples" como
+                                // X-XSRF-TOKEN) con 403 aunque el login haya sido correcto.
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+
                                 // Protección CSRF para la autenticación basada en sesión.
+                                // Se usa el handler sin XOR porque el frontend lee el valor
+                                // de la cookie XSRF-TOKEN tal cual y lo reenvía en el header
+                                // X-XSRF-TOKEN (patrón "double submit cookie" para SPAs); con
+                                // el handler por defecto (XorCsrfTokenRequestAttributeHandler)
+                                // ese valor no coincide con el que el servidor espera.
                                 .csrf(csrf -> csrf
                                                 .csrfTokenRepository(
                                                                 org.springframework.security.web.csrf.CookieCsrfTokenRepository
-                                                                                .withHttpOnlyFalse()))
+                                                                                .withHttpOnlyFalse())
+                                                .csrfTokenRequestHandler(
+                                                                new org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler()))
 
                                 // Content-Security-Policy para las respuestas del backend.
                                 // La política real para el frontend vive en el <meta> de cada
@@ -82,9 +100,13 @@ public class SecurityConfig {
                                                                 "/clases.html",
                                                                 "/reservas.html",
                                                                 "/perfil.html",
-                                                                "/admin.html",
                                                                 "/assets/**")
                                                 .permitAll()
+
+                                                // Panel de admin: solo administradores, ni siquiera
+                                                // visible para visitantes o usuarios sin ese rol.
+                                                .requestMatchers("/admin.html")
+                                                .hasRole("ADMIN")
 
                                                 // Usuarios administradores
                                                 .requestMatchers(
@@ -124,7 +146,8 @@ public class SecurityConfig {
                 return http.build();
         }
 
-        // La configuración CORS vive únicamente en CorsConfig.java (WebMvcConfigurer)
-        // para evitar dos fuentes de verdad con orígenes inconsistentes.
+        // La configuración CORS vive únicamente en CorsConfig.java (como
+        // CorsConfigurationSource) para evitar dos fuentes de verdad con
+        // orígenes inconsistentes; aquí solo se conecta vía .cors(...) arriba.
 
 }

@@ -1,5 +1,13 @@
 const API_URL = 'http://localhost:8080/api';
 
+// Escapa texto antes de interpolarlo en innerHTML (tanto en contenido como
+// en atributos value="..."): sin esto, un nombre de cancha/clase/usuario
+// guardado en MySQL con HTML dentro se inyecta tal cual en la página.
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, function (ch) { return HTML_ESCAPES[ch]; });
+}
+
 // Lee el cuerpo de error del backend ({message: ...}) y devuelve un mensaje
 // legible para el usuario; si no se puede leer, usa el mensaje por defecto.
 async function parseApiError(respuesta, mensajePorDefecto) {
@@ -72,6 +80,22 @@ function getCsrfToken() {
   return cookie ? decodeURIComponent(cookie.split('=')[1]) : null;
 }
 
+// La cookie XSRF-TOKEN solo se planta cuando algo resuelve el CsrfToken en el
+// backend (carga diferida de Spring Security). Antes de la primera petición
+// que modifica datos hay que pedir GET /csrf para obtenerla.
+async function getCsrfTokenAsync() {
+  const token = getCsrfToken();
+  if (token) return token;
+
+  try {
+    await fetch(API_URL + '/csrf', { credentials: 'include' });
+  } catch (error) {
+    console.error('No se pudo obtener el token CSRF:', error);
+  }
+
+  return getCsrfToken();
+}
+
 // ---------------------------------------------
 // Login: asigna rol según el correo y redirige
 // admin... -> Administrador | cualquier otro -> Usuario
@@ -90,7 +114,7 @@ if (loginForm) {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'X-XSRF-TOKEN': getCsrfToken()
+          'X-XSRF-TOKEN': await getCsrfTokenAsync()
         },
         body: JSON.stringify({ email: email, password: password })
       });
@@ -161,7 +185,7 @@ if (navbar) {
       if (nameSpan) {
         nameSpan.textContent = name;
         if (role === 'admin') {
-          nameSpan.innerHTML = name + '<span class="role-tag">Admin</span>';
+          nameSpan.innerHTML = escapeHtml(name) + '<span class="role-tag">Admin</span>';
         }
       }
     }
@@ -235,14 +259,14 @@ if (courtsGrid) {
     const courts = canchasAPI || getCourts();
     courtsGrid.innerHTML = courts.map(function (c) {
       const available = c.status === 'disponible';
-      return '<article class=\"court-card\" data-court-id=\"' + c.id + '\" data-sport=\"' + c.sport + '\" data-name=\"' + String(c.name).replace(/\"/g, '&quot;') + '\">' +
-        '<div class=\"court-media' + (available ? '' : ' is-unavailable') + '\" style=\"background-image:url(\'' + (c.image || '') + '\')\">' +
+      return '<article class=\"court-card\" data-court-id=\"' + c.id + '\" data-sport=\"' + escapeHtml(c.sport) + '\" data-name=\"' + escapeHtml(c.name) + '\">' +
+        '<div class=\"court-media' + (available ? '' : ' is-unavailable') + '\" style=\"background-image:url(\'' + escapeHtml(c.image || '') + '\')\">' +
         '<span class=\"court-tag\">' + (c.sport === 'fulbito' ? '⚽ Fulbito' : c.sport === 'futbol' ? '🏟️ Fútbol' : c.sport === 'tenis' ? '🎾 Tenis' : '🏊 Piscina') + '</span>' +
         '<span class=\"court-status ' + (available ? 'available' : 'unavailable') + '\">' + (available ? 'Disponible' : 'No disponible') + '</span>' +
         '</div>' +
         '<div class=\"court-body\">' +
-        '<h3>' + c.name + '</h3>' +
-        '<p>' + (c.desc || 'Cancha deportiva disponible para reservas.') + '</p>' +
+        '<h3>' + escapeHtml(c.name) + '</h3>' +
+        '<p>' + escapeHtml(c.desc || 'Cancha deportiva disponible para reservas.') + '</p>' +
         '<div class=\"court-footer\"><div class=\"court-price\">S/ ' + Number(c.price || 0) + ' <span>/ hora</span></div>' +
         '<div class=\"court-capacity\">👥 hasta ' + Number(c.capacity || 0) + '</div></div>' +
         (available ? '<button class=\"reserve-btn\" type=\"button\">Reservar cancha</button>' : '<button class=\"reserve-btn\" type=\"button\" disabled>No disponible</button>') +
@@ -513,7 +537,8 @@ if (reservationForm) {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': await getCsrfTokenAsync()
         },
         body: JSON.stringify({
           usuarioId: Number(localStorage.getItem('sportcourt_user_id')),
@@ -562,8 +587,8 @@ if (reservasList) {
       return '<article class="reserva-card" data-status="' + r.status + '">' +
         '<div class="reserva-info">' +
         '<div class="reserva-tags"><span class="reserva-sport-tag">🏟️ Cancha</span><span class="reserva-status ' + r.status + '">' + statusLabel + '</span></div>' +
-        '<h3>' + r.item + '</h3>' +
-        '<div class="reserva-meta"><span>📅 ' + r.date + '</span><span>🕒 ' + r.time + '</span></div>' +
+        '<h3>' + escapeHtml(r.item) + '</h3>' +
+        '<div class="reserva-meta"><span>📅 ' + escapeHtml(r.date) + '</span><span>🕒 ' + escapeHtml(r.time) + '</span></div>' +
         '<div class="reserva-actions">' +
         '<button class="ver-btn" type="button">Ver cancha</button>' +
         (canCancel ? '<button class="cancel-btn" data-id="' + r.id + '" type="button">Cancelar</button>' : '') +
@@ -585,7 +610,10 @@ if (reservasList) {
       try {
         const response = await fetch(API_URL + '/reservas/' + id + '/cancelar', {
           method: 'PUT',
-          credentials: 'include'
+          credentials: 'include',
+          headers: {
+            'X-XSRF-TOKEN': await getCsrfTokenAsync()
+          }
         });
 
         if (!response.ok) {
@@ -686,7 +714,8 @@ document.querySelectorAll('.enroll-btn').forEach(function (btn) {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': await getCsrfTokenAsync()
         },
         body: JSON.stringify(inscripcion)
       });
@@ -957,12 +986,12 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
   function renderCourts() {
     courtsAdminGrid.innerHTML = courts.map(function (c) {
       return '<div class="admin-item-card" data-id="' + c.id + '">' +
-        '<div class="admin-item-media" style="background-image:url(\'' + c.image + '\')">' +
-        '<span class="item-tag">' + (sportLabels[c.sport] || c.sport) + '</span>' +
+        '<div class="admin-item-media" style="background-image:url(\'' + escapeHtml(c.image) + '\')">' +
+        '<span class="item-tag">' + escapeHtml(sportLabels[c.sport] || c.sport) + '</span>' +
         '</div>' +
         '<div class="admin-item-body">' +
-        '<h3>' + c.name + '</h3>' +
-        '<p class="item-sub">' + c.status.replace('_', ' ') + ' · hasta ' + c.capacity + ' personas</p>' +
+        '<h3>' + escapeHtml(c.name) + '</h3>' +
+        '<p class="item-sub">' + escapeHtml(c.status.replace('_', ' ')) + ' · hasta ' + c.capacity + ' personas</p>' +
         '<div class="item-price">S/ ' + c.price + ' /hora</div>' +
         '<div class="admin-item-actions">' +
         '<button class="edit-item-btn" data-type="court" data-id="' + c.id + '">Editar</button>' +
@@ -978,10 +1007,10 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
   function renderClasses() {
     classesAdminGrid.innerHTML = classes.map(function (k) {
       return '<div class="admin-item-card" data-id="' + k.id + '">' +
-        '<div class="admin-item-icon">' + k.icon + '</div>' +
+        '<div class="admin-item-icon">' + escapeHtml(k.icon) + '</div>' +
         '<div class="admin-item-body">' +
-        '<h3>' + k.name + '</h3>' +
-        '<p class="item-sub">' + k.level + ' · ' + k.schedule + ' · ' + k.slots + ' cupos</p>' +
+        '<h3>' + escapeHtml(k.name) + '</h3>' +
+        '<p class="item-sub">' + escapeHtml(k.level) + ' · ' + escapeHtml(k.schedule) + ' · ' + k.slots + ' cupos</p>' +
         '<div class="item-price">S/ ' + k.price + ' /mes</div>' +
         '<div class="admin-item-actions">' +
         '<button class="edit-item-btn" data-type="class" data-id="' + k.id + '">Editar</button>' +
@@ -998,9 +1027,9 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
     reservationsTableBody.innerHTML = reservations.map(function (r) {
       const cancelada = r.status === 'cancelada';
       return '<tr data-id="' + r.id + '">' +
-        '<td>' + r.user + '</td>' +
-        '<td>' + r.item + '</td>' +
-        '<td>' + r.date + '<br><span style="color:var(--muted);font-size:0.8rem;">' + r.time + '</span></td>' +
+        '<td>' + escapeHtml(r.user) + '</td>' +
+        '<td>' + escapeHtml(r.item) + '</td>' +
+        '<td>' + escapeHtml(r.date) + '<br><span style="color:var(--muted);font-size:0.8rem;">' + escapeHtml(r.time) + '</span></td>' +
         '<td>S/ ' + r.price + '</td>' +
         '<td>' + r.status + '</td>' +
         '<td>' +
@@ -1027,16 +1056,16 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
     formPanelInner.innerHTML =
       '<h2>' + (existing ? 'Editar cancha' : 'Agregar cancha') + '</h2>' +
       '<form id="item-form">' +
-      '<div class="field"><label>Nombre</label><input type="text" id="f-name" value="' + c.name + '" required></div>' +
+      '<div class="field"><label>Nombre</label><input type="text" id="f-name" value="' + escapeHtml(c.name) + '" required></div>' +
       '<div class="field"><label>Deporte</label><select id="f-sport">' +
       ['fulbito', 'futbol', 'tenis', 'piscina'].map(function (s) {
         return '<option value="' + s + '"' + (c.sport === s ? ' selected' : '') + '>' + (sportLabels[s] || s) + '</option>';
       }).join('') +
       '</select></div>' +
-      '<div class="field"><label>Descripción</label><input type="text" id="f-desc" value="' + (c.desc || '') + '"></div>' +
+      '<div class="field"><label>Descripción</label><input type="text" id="f-desc" value="' + escapeHtml(c.desc || '') + '"></div>' +
       '<div class="field"><label>Precio por hora (S/)</label><input type="number" id="f-price" value="' + c.price + '" required></div>' +
       '<div class="field"><label>Capacidad</label><input type="number" id="f-capacity" value="' + c.capacity + '" required></div>' +
-      '<div class="field"><label>URL de imagen</label><input type="text" id="f-image" value="' + (c.image || '') + '"></div>' +
+      '<div class="field"><label>URL de imagen</label><input type="text" id="f-image" value="' + escapeHtml(c.image || '') + '"></div>' +
       '<div class="field"><label>Estado</label><select id="f-status">' +
       '<option value="disponible"' + (c.status === 'disponible' ? ' selected' : '') + '>Disponible</option>' +
       '<option value="no_disponible"' + (c.status === 'no_disponible' ? ' selected' : '') + '>No disponible</option>' +
@@ -1071,7 +1100,8 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
           method: metodo,
           credentials: 'include',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-XSRF-TOKEN': await getCsrfTokenAsync()
           },
           body: JSON.stringify({
             sport: data.sport,
@@ -1127,11 +1157,11 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
     formPanelInner.innerHTML =
       '<h2>' + (existing ? 'Editar clase' : 'Agregar clase') + '</h2>' +
       '<form id="item-form">' +
-      '<div class="field"><label>Nombre</label><input type="text" id="f-name" value="' + k.name + '" required></div>' +
-      '<div class="field"><label>Emoji / ícono</label><input type="text" id="f-icon" value="' + k.icon + '"></div>' +
-      '<div class="field"><label>Nivel / edades</label><input type="text" id="f-level" value="' + k.level + '"></div>' +
-      '<div class="field"><label>Horario</label><input type="text" id="f-schedule" value="' + k.schedule + '"></div>' +
-      '<div class="field"><label>Profesor</label><input type="text" id="f-professor" value="' + k.professor + '"></div>' +
+      '<div class="field"><label>Nombre</label><input type="text" id="f-name" value="' + escapeHtml(k.name) + '" required></div>' +
+      '<div class="field"><label>Emoji / ícono</label><input type="text" id="f-icon" value="' + escapeHtml(k.icon) + '"></div>' +
+      '<div class="field"><label>Nivel / edades</label><input type="text" id="f-level" value="' + escapeHtml(k.level) + '"></div>' +
+      '<div class="field"><label>Horario</label><input type="text" id="f-schedule" value="' + escapeHtml(k.schedule) + '"></div>' +
+      '<div class="field"><label>Profesor</label><input type="text" id="f-professor" value="' + escapeHtml(k.professor) + '"></div>' +
       '<div class="field"><label>Precio mensual (S/)</label><input type="number" id="f-price" value="' + k.price + '" required></div>' +
       '<div class="field"><label>Cupos disponibles</label><input type="number" id="f-slots" value="' + k.slots + '" required></div>' +
       '<div class="form-panel-actions">' +
@@ -1169,7 +1199,8 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
           method: method,
           credentials: 'include',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-XSRF-TOKEN': await getCsrfTokenAsync()
           },
           body: JSON.stringify(data)
         });
@@ -1227,7 +1258,10 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
       try {
         const respuesta = await fetch(API_URL + '/reservas/' + id + '/cancelar', {
           method: 'PUT',
-          credentials: 'include'
+          credentials: 'include',
+          headers: {
+            'X-XSRF-TOKEN': await getCsrfTokenAsync()
+          }
         });
 
         if (!respuesta.ok) {
@@ -1274,7 +1308,10 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
         try {
           const respuesta = await fetch(API_URL + '/canchas/' + id, {
             method: 'DELETE',
-            credentials: 'include'
+            credentials: 'include',
+            headers: {
+              'X-XSRF-TOKEN': await getCsrfTokenAsync()
+            }
           });
 
           if (!respuesta.ok) {
@@ -1307,7 +1344,10 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
         try {
           const respuesta = await fetch(API_URL + '/clases/' + id, {
             method: 'DELETE',
-            credentials: 'include'
+            credentials: 'include',
+            headers: {
+              'X-XSRF-TOKEN': await getCsrfTokenAsync()
+            }
           });
 
           if (!respuesta.ok) {
@@ -1342,7 +1382,10 @@ if (document.body.dataset.page === 'admin' && getRole() === 'admin') {
         try {
           const respuesta = await fetch(API_URL + '/reservas/' + id, {
             method: 'DELETE',
-            credentials: 'include'
+            credentials: 'include',
+            headers: {
+              'X-XSRF-TOKEN': await getCsrfTokenAsync()
+            }
           });
 
           if (!respuesta.ok) {

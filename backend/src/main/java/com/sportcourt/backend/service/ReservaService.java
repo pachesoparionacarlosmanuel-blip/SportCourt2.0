@@ -170,7 +170,20 @@ public class ReservaService {
      * Eliminar una reserva
      */
     public void eliminarReserva(Integer id) {
-        obtenerReserva(id); // Verifica que existe
+        Reserva reserva = obtenerReserva(id);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
+
+        if (!esAdmin && !reserva.getUsuarioId().equals(usuarioAutenticadoId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "No tienes permiso para eliminar esta reserva");
+        }
+
         reservaRepository.deleteById(id);
     }
 
