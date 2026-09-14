@@ -44,6 +44,15 @@ public class InscripcionService {
      */
     public Inscripcion crearInscripcion(InscripcionDTO inscripcionDTO) {
 
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (esAdmin) {
+            throw new BusinessException("Los administradores no pueden inscribirse a clases");
+        }
+
         Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
         inscripcionDTO.setUsuarioId(usuarioAutenticadoId);
 
