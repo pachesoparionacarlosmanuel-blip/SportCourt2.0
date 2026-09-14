@@ -71,6 +71,12 @@ Creados 6 DTOs con validaciones:
 | `handleBusinessException()` | `BusinessException` | 409 CONFLICT | Errores de lógica de negocio |
 | `handleGlobalException()` | `Exception` (genérica) | 500 INTERNAL_SERVER_ERROR | Otros errores |
 
+> ❗ **Actualización posterior (2026-09-14):** se agregó `handleAccessDeniedException()`
+> (`AccessDeniedException` → 403 FORBIDDEN) para los chequeos de propietario/rol lanzados
+> manualmente en los servicios (Reserva/Inscripcion). Antes de este fix, esas excepciones
+> caían al handler genérico y respondían 500 en vez de 403. Ver `docs/PROYECTO_STATUS.md`
+> para el detalle del bug y su corrección.
+
 #### `ErrorResponse.java`
 - **Estructura estándar**:
 ```json

@@ -1,5 +1,18 @@
 # ✅ FASE 4: TESTING Y VALIDACIÓN - COMPLETADA, corriendo en CI
 
+> **Actualizado 2026-09-14 (integration tests de endpoints):** se agregaron 47 tests de
+> integración HTTP reales (`@SpringBootTest` + `java.net.http.HttpClient`, sin mocks, mismo
+> patrón que `CsrfLoginFlowTest`) para los 5 controladores (Cancha, Clase, Reserva,
+> Inscripcion, Usuario) en `backend/src/test/java/.../controller/`, ejercitando el flujo
+> completo controller→service→repository→H2: CRUD autenticado, validación 400, 404,
+> conflictos 409 (duplicados/capacidad/cupos), autorización 401/403. Total: 71 → **119 tests**.
+> Estas pruebas, junto con una verificación E2E manual contra el MySQL real, detectaron dos
+> bugs reales que ya se corrigieron: (1) `AccessDeniedException` de los chequeos de
+> propietario devolvía 500 en vez de 403 (faltaba `@ExceptionHandler` en
+> `GlobalExceptionHandler`); (2) crear una reserva sobre una cancha con `capacidad` NULL en
+> MySQL lanzaba `NullPointerException` (dato legado en canchas reales id 1 y 2). Ver
+> `docs/PROYECTO_STATUS.md` para el detalle de ambos.
+>
 > **Actualizado 2026-09-14:** se agregó `CsrfLoginFlowTest`, una suite de
 > integración end-to-end (sin mocks, `java.net.http.HttpClient` contra un
 > servidor embebido real) que verifica el flujo CSRF completo alrededor de
@@ -21,11 +34,11 @@
 
 | Métrica | Valor |
 |---------|-------|
-| **Suites de test** | 5 de servicio (Mockito) + 1 de contexto Spring (H2) + 1 de integración CSRF end-to-end |
-| **Total de Tests** | 71 tests |
-| **Tests Pasados** | 71 ✅ |
+| **Suites de test** | 5 de servicio (Mockito) + 1 de contexto Spring (H2) + 1 de integración CSRF end-to-end + 5 de integración de endpoints (H2) |
+| **Total de Tests** | 119 tests |
+| **Tests Pasados** | 119 ✅ |
 | **Tests Fallidos** | 0 |
-| **Cobertura** | Servicios críticos (ReservaService, InscripcionService) + flujo CSRF/login real |
+| **Cobertura** | Servicios críticos (ReservaService, InscripcionService) + flujo CSRF/login real + endpoints HTTP completos de los 5 recursos |
 | **CI** | `validar-backend` en GitHub Actions corre `mvn test` en cada push/PR |
 
 `BackendApplicationTests` ahora usa `@ActiveProfiles("test")` →
@@ -165,6 +178,35 @@ pasar por el filtro de seguridad de verdad, tal como lo haría un navegador.
   cookie `XSRF-TOKEN` (regresión: con el handler `Xor` por defecto no coincidían, y el
   frontend —que lee la cookie directo— nunca podía pasar el filtro CSRF)
 
+### 7. **Integration tests de endpoints** (47 tests, agregados 2026-09-14)
+
+Igual que `CsrfLoginFlowTest`: `@SpringBootTest(webEnvironment = RANDOM_PORT)` +
+`@ActiveProfiles("test")` + `java.net.http.HttpClient` puro, sin mocks — ejercitan el
+flujo real controller→service→repository→H2. Un archivo por recurso en
+`backend/src/test/java/com/sportcourt/backend/controller/`, con una clase base
+(`AbstractControllerTest`) que centraliza el login real (CSRF + sesión) y el seeding de
+datos vía repositorios.
+
+| Clase | Tests | Cubre |
+|-------|-------|-------|
+| `CanchaControllerTest` | 10 | GET público, CRUD admin, 400, 404, 403 sin rol ADMIN |
+| `ClaseControllerTest` | 9 | GET público, CRUD admin, 400, 404, 403 sin rol ADMIN |
+| `ReservaControllerTest` | 12 | Crear/cancelar autenticado, 400, 404, 409 (duplicado/capacidad), 403 (propietario, DELETE solo ADMIN) |
+| `InscripcionControllerTest` | 11 | Crear/cancelar/eliminar autenticado, 400, 404, 409 (duplicado/cupos), 403 (propietario) |
+| `UsuarioControllerTest` | 5 | 403 sin rol ADMIN, respuesta sin password |
+
+**Nota de implementación:** las clases usan el sufijo `Test` (no `IT`) porque el proyecto
+no tiene el plugin Failsafe configurado — Surefire (`mvn test`) ignora silenciosamente los
+archivos `*IT.java`.
+
+**Bugs detectados y corregidos gracias a estas pruebas** (ver `docs/PROYECTO_STATUS.md`):
+- `AccessDeniedException` de los chequeos de propietario (Reserva/Inscripcion) devolvía 500
+  en vez de 403 → agregado `@ExceptionHandler(AccessDeniedException.class)` en
+  `GlobalExceptionHandler`.
+- `NullPointerException` al reservar una cancha con `capacidad` NULL (detectado en la
+  verificación E2E contra MySQL real, no en H2) → `ReservaService` trata `capacidad` NULL
+  como 1.
+
 ---
 
 ## 🔍 Validaciones Críticas Probadas
@@ -261,15 +303,20 @@ public class [Service]Test {
 
 ### Resultado (verificado 2026-09-14)
 ```
-BackendApplicationTests:    1 test
-CsrfLoginFlowTest:          4 tests
-CanchaServiceTest:          7 tests
-ClaseServiceTest:           7 tests
-InscripcionServiceTest:    12 tests
-ReservaServiceTest:        34 tests
-UsuarioServiceTest:         6 tests
+BackendApplicationTests:      1 test
+CanchaControllerTest:        10 tests
+ClaseControllerTest:          9 tests
+InscripcionControllerTest:   11 tests
+ReservaControllerTest:       12 tests
+UsuarioControllerTest:        5 tests
+CsrfLoginFlowTest:            4 tests
+CanchaServiceTest:            7 tests
+ClaseServiceTest:             7 tests
+InscripcionServiceTest:      12 tests
+ReservaServiceTest:          35 tests
+UsuarioServiceTest:           6 tests
 --------------------------------
-Tests run: 71, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 119, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
@@ -304,34 +351,33 @@ BUILD SUCCESS
 
 | Servicio | Tests | Métodos Probados | Coverage |
 |----------|-------|------------------|----------|
-| ReservaService | 34 | crearReserva(), obtenerReserva(), actualizarReserva(), cancelarReserva(), listarReservas(), eliminarReserva() | 100% |
+| ReservaService | 35 | crearReserva(), obtenerReserva(), actualizarReserva(), cancelarReserva(), listarReservas(), eliminarReserva() | 100% |
 | InscripcionService | 12 | crearInscripcion(), obtenerInscripcion(), cancelarInscripcion() | 100% |
 | CanchaService | 7 | crearCancha(), obtenerCancha(), listarCanchas(), actualizarCancha(), eliminarCancha() | 100% |
 | ClaseService | 7 | crearClase(), obtenerClase(), listarClases(), actualizarClase(), eliminarClase() | 100% |
 | UsuarioService | 6 | obtenerUsuario(), listarUsuarios(), verificarUsuarioExiste() | 100% |
 | CSRF/login (integración) | 4 | flujo GET /api/csrf → POST /api/login end-to-end | — |
+| Controllers (integración HTTP) | 47 | los 5 controladores, flujo completo vía HTTP real | — |
 
 ---
 
-## 🚀 Siguiente Paso: Fase 5
+## 🚀 Siguiente Paso
 
-**Frontend** - Actualización de JavaScript
-- Integración con nuevos DTOs
-- Manejo de errores 400, 404, 409
-- Eliminación de console.log statements
-- Validación de respuestas de API
+Fase 5 (Frontend) y la verificación E2E contra MySQL real ya se completaron el
+2026-09-14 — ver `docs/PROYECTO_STATUS.md`. No queda ningún paso pendiente de Fase 4.
 
 ---
 
 ## 📦 Archivos Creados/Modificados
 
-### Creados (6 test suites)
-- ✅ ReservaServiceTest.java — ampliado con tests de actualización, listado y autorización por propietario/ADMIN (cancelar y eliminar)
+### Creados (11 test suites)
+- ✅ ReservaServiceTest.java — ampliado con tests de actualización, listado, autorización por propietario/ADMIN (cancelar y eliminar) y regresión de `capacidad` NULL
 - ✅ InscripcionServiceTest.java (403 líneas)
 - ✅ CanchaServiceTest.java (142 líneas)
 - ✅ ClaseServiceTest.java (142 líneas)
 - ✅ UsuarioServiceTest.java (116 líneas)
 - ✅ CsrfLoginFlowTest.java (122 líneas — integración end-to-end, sin mocks)
+- ✅ controller/AbstractControllerTest.java + CanchaControllerTest.java + ClaseControllerTest.java + ReservaControllerTest.java + InscripcionControllerTest.java + UsuarioControllerTest.java (47 tests — integración HTTP de endpoints, agregados 2026-09-14)
 
 ### Configuración de Tests
 - ✅ application-test.properties (H2 database)
@@ -347,21 +393,20 @@ BUILD SUCCESS
 ✅ Fase 1: Seguridad (+ endurecimiento CSRF/autorización) — 100%
 ✅ Fase 2: Arquitectura (DTOs)       — 100%
 ✅ Fase 3: Lógica de Negocio (Services) — 100%
-✅ Fase 4: Testing (71 tests, H2 en CI) — 100%
+✅ Fase 4: Testing (119 tests, H2 en CI) — 100%
+✅ Fase 5: Frontend (JavaScript) + verificación E2E — 100%
+✅ Fase 6: Documentación (OpenAPI)   — 100%
 
-⏳ Fase 5: Frontend (JavaScript)     — PENDIENTE
-⏳ Fase 6: Documentación (OpenAPI)   — PENDIENTE
-
-Progreso Total: ~63%
+Progreso Total: 100%
 ```
 
 ---
 
 ## 📊 Estadísticas
 
-- **Archivos de test**: 7 (5 de servicio + `BackendApplicationTests` + `CsrfLoginFlowTest`)
-- **Tests totales**: 71
-- **Cobertura**: Todos los servicios críticos + flujo CSRF/login real
+- **Archivos de test**: 13 (5 de servicio + `BackendApplicationTests` + `CsrfLoginFlowTest` + 6 de integración de endpoints)
+- **Tests totales**: 119
+- **Cobertura**: Todos los servicios críticos + flujo CSRF/login real + los 5 controladores end-to-end
 - **Tasa de éxito**: 100%
 - **CI**: corre automáticamente en cada push/PR (`validar-backend`)
 

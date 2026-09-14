@@ -465,6 +465,45 @@ public class ReservaServiceTest {
         }
 
         @Test
+        @DisplayName("❌ VALIDACIÓN 5: Capacidad NULL en la cancha (dato legado) se trata como 1, sin NullPointerException")
+        void crearReservaConCapacidadNulaSeTrataComoUnaYRechazaSegundaReserva() {
+                // Arrange: Cancha sin capacidad definida en la BD (NULL)
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
+                when(canchaService.obtenerCancha(1)).thenReturn(createMockCancha());
+                when(canchaService.obtenerCapacidadCancha(1)).thenReturn(null);
+
+                // Ya hay 1 reserva activa: con capacidad NULL tratada como 1, debe rechazar
+                Reserva reservaExistente = new Reserva();
+                reservaExistente.setUsuarioId(2);
+                reservaExistente.setCanchaId(1);
+                reservaExistente.setFecha(LocalDate.of(2026, 9, 10));
+                reservaExistente.setHoraInicio(LocalTime.of(10, 0));
+                reservaExistente.setHoraFin(LocalTime.of(11, 0));
+                reservaExistente.setEstado("activa");
+                when(reservaRepository.buscarReservasDuplicadas(
+                                eq(1),
+                                eq(1),
+                                eq(LocalDate.of(2026, 9, 10)),
+                                eq(LocalTime.of(10, 0)),
+                                eq(LocalTime.of(11, 0)),
+                                isNull())).thenReturn(List.of());
+                when(reservaRepository.buscarReservasSuperpuestas(
+                                eq(1),
+                                eq(LocalDate.of(2026, 9, 10)),
+                                eq(LocalTime.of(10, 0)),
+                                eq(LocalTime.of(11, 0)),
+                                isNull())).thenReturn(List.of(reservaExistente));
+
+                // Act & Assert: BusinessException (409), no NullPointerException (500)
+                assertThrows(BusinessException.class, () -> {
+                        reservaService.crearReserva(validReservaDTO);
+                });
+
+                verify(reservaRepository, never()).save(any());
+        }
+
+        @Test
         @DisplayName("✅ VALIDACIÓN 5: Capacidad disponible - reserva exitosa")
         void crearReservaConCapacidad() {
                 // Arrange: Cancha con capacidad 2

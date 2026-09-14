@@ -240,7 +240,13 @@ public class ReservaService {
             java.time.LocalTime horaFin,
             Integer reservaIdExcluir) {
 
+        // Canchas sin capacidad definida en la BD (dato legado anterior a la
+        // columna "capacidad") se tratan como uso exclusivo: 1 reserva activa
+        // a la vez, en vez de lanzar NullPointerException al desempaquetar.
         Integer capacidadTotal = canchaService.obtenerCapacidadCancha(canchaId);
+        if (capacidadTotal == null) {
+            capacidadTotal = 1;
+        }
 
         long reservasActivas = reservaRepository.buscarReservasSuperpuestas(
                 canchaId,

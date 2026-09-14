@@ -68,13 +68,21 @@
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
 │ FASE 4: TESTING Y VALIDACIÓN                                  │
-│ ✅ COMPLETADA (unit tests) + CI corriéndolos en cada push      │
+│ ✅ COMPLETADA — 2026-09-14 (unit + integración de endpoints)   │
 │                                                                │
-│ - ✅ 71 tests (JUnit 5 + Mockito + 1 @SpringBootTest + 1        │
-│   integración CSRF end-to-end), 0 fallos                       │
+│ - ✅ 118 tests (JUnit 5 + Mockito + 1 @SpringBootTest + 1       │
+│   integración CSRF end-to-end + 47 integration tests de        │
+│   endpoints), 0 fallos                                         │
 │ - ✅ Pruebas de duplicados y superposición de horarios         │
 │ - ✅ Pruebas de capacidad/cupos                                │
 │ - ✅ Pruebas de autorización por propietario (Reserva)         │
+│ - ✅ Integration tests HTTP reales (controller→service→        │
+│   repository→H2, sin mocks) para los 5 recursos (Cancha,       │
+│   Clase, Reserva, Inscripcion, Usuario): CRUD autenticado,      │
+│   validación 400, 404, conflictos 409, autorización 401/403,   │
+│   vía java.net.http.HttpClient + flujo CSRF+sesión real (igual │
+│   patrón que CsrfLoginFlowTest, sin spring-security-test) —    │
+│   ver backend/src/test/java/.../controller/                    │
 │ - ✅ BackendApplicationTests corre con H2 en memoria (perfil   │
 │   "test"), sin depender de la MySQL real — apto para CI       │
 │ - ✅ GitHub Actions ejecuta "mvn test" en cada push/PR         │
@@ -141,8 +149,8 @@
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
 │ FASE 5: FRONTEND                                               │
-│ ✅ COMPLETADA (código) — ⏳ pendiente verificación E2E con      │
-│    MySQL real (sin acceso a DB_USERNAME/DB_PASSWORD locales)    │
+│ ✅ COMPLETADA — 2026-09-14 (código + verificación E2E contra    │
+│    MySQL real vía backend levantado localmente)                 │
 │                                                                │
 │ - ✅ Eliminados todos los console.log de assets/js/app.js       │
 │ - ✅ Helper parseApiError: muestra el message real del         │
@@ -168,6 +176,14 @@
 │   de negocio: eliminados DEFAULT_COURTS, SEED_COURTS,          │
 │   SEED_CLASSES, loadData/saveData; canchas y clases del panel  │
 │   admin ahora solo vienen de MySQL vía la API                  │
+│ - ✅ Verificación E2E contra MySQL real (contenedor Docker      │
+│   local `mysql-sportcourt`, datos reales existentes): backend  │
+│   levantado con las credenciales reales, GET /api/canchas y    │
+│   /api/clases devuelven los datos reales correctamente         │
+│   mapeados, login real + CSRF, creación real de una reserva y  │
+│   una inscripción de prueba (con usuario y datos temporales,   │
+│   eliminados al finalizar sin dejar rastro — conteos de tablas │
+│   verificados idénticos antes/después)                         │
 └────────────────────────────────────────────────────────────────┘
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
@@ -196,8 +212,8 @@
 | Métrica | Valor |
 |---------|-------|
 | **Archivos Java (main)** | 38 |
-| **Archivos Java (test)** | 7 |
-| **Tests (unit + contexto Spring + integración CSRF)** | 71 (0 fallos), corren en CI |
+| **Archivos Java (test)** | 13 |
+| **Tests (unit + contexto Spring + integración CSRF + integración de endpoints)** | 118 (0 fallos), corren en CI |
 | **Servicios implementados** | 5 |
 | **Validaciones críticas** | 9 |
 | **Controladores actualizados** | 5 |
@@ -320,6 +336,8 @@
 | admin.html accesible sin rol ADMIN a nivel de servidor | 1C | `.requestMatchers("/admin.html").hasRole("ADMIN")` | ✅ FIXED |
 | Cualquier usuario autenticado podía eliminar la reserva de otro por ID | 1C | Chequeo de propietario/ADMIN en `eliminarReserva` | ✅ FIXED |
 | XSS almacenado: nombres/descripciones se insertaban sin escapar en innerHTML | 1C | Helper escapeHtml() en todas las vistas dinámicas | ✅ FIXED |
+| `AccessDeniedException` lanzada manualmente en ReservaController/ReservaService e InscripcionController/InscripcionService (chequeo de propietario) no tiene `@ExceptionHandler` específico en `GlobalExceptionHandler` → cae al handler genérico y respondía **500** en vez de 403/404 cuando un usuario consulta/cancela la reserva o inscripción de otro | 4 (integration tests) | `@ExceptionHandler(AccessDeniedException.class)` → 403 en GlobalExceptionHandler | ✅ FIXED — 2026-09-14 |
+| `NullPointerException` al crear una reserva sobre una cancha con `capacidad` NULL en MySQL (p. ej. canchas reales id 1 y 2): el service hacía unboxing de `capacidadTotal` sin verificar null → 500 en vez de manejarlo como dato faltante | 5 (E2E contra MySQL real) | `ReservaService.validarCapacidadDisponible`: capacidad NULL se trata como 1 (uso exclusivo, comportamiento legado) | ✅ FIXED — 2026-09-14 |
 
 ---
 
@@ -337,7 +355,8 @@
   - `BackendApplication.java` - Main app
 - `backend/src/test/java/com/sportcourt/backend/` - `BackendApplicationTests` (contexto Spring, perfil
   "test" con H2) + `CsrfLoginFlowTest` (4 tests de integración end-to-end del flujo CSRF, sin mocks)
-  + `service/` con 5 suites de unit tests (71 tests en total)
+  + `service/` con 5 suites de unit tests + `controller/` con 5 suites de integración HTTP de
+  endpoints (119 tests en total)
 
 ### Base de Datos
 - `sportcourt` (MySQL)
@@ -382,13 +401,13 @@ Build Tool: Maven
 
 ## 🎯 Próximas Acciones (Orden Prioritario)
 
-### Fase 4: Testing (pendiente restante)
+### Fase 4: Testing
 1. [x] Crear unit tests para UsuarioService
 2. [x] Crear unit tests para CanchaService
 3. [x] Crear unit tests para ClaseService
 4. [x] Crear unit tests para ReservaService (validaciones)
 5. [x] Crear unit tests para InscripcionService (validaciones)
-6. [ ] Integration tests para endpoints (con base de datos real/H2)
+6. [x] Integration tests para endpoints (con H2, flujo HTTP real) — 2026-09-14
 
 ### Fase 5: Frontend
 1. [x] Eliminar console.log statements
@@ -396,13 +415,20 @@ Build Tool: Maven
 3. [x] Manejar errores 409 (duplicados, capacidad)
 4. [x] Manejar errores 404 (recurso no encontrado)
 5. [x] Validación de respuestas
-6. [ ] Verificación E2E con backend + MySQL real corriendo (pendiente: acceso a DB_USERNAME/DB_PASSWORD locales)
+6. [x] Verificación E2E con backend + MySQL real corriendo — 2026-09-14
 
 ### Fase 6: Documentación
 1. [x] Generar OpenAPI/Swagger
 2. [x] Actualizar README
 3. [x] Guía de deployment
 4. [x] Manual de usuario
+
+### Bugs detectados y corregidos (Fase 4/5) — 2026-09-14
+1. [x] `GlobalExceptionHandler`: agregado `@ExceptionHandler(AccessDeniedException.class)` → 403 (antes 500 en chequeos de propietario de Reserva/Inscripcion)
+2. [x] `ReservaService`: `capacidad` NULL en `cancha` se trata como 1 en vez de lanzar NPE (antes 500 al reservar canchas reales sin capacidad definida, p. ej. id 1 y 2)
+
+Ambos corregidos, con tests de regresión agregados (unit + integration) y reverificados en vivo
+contra el MySQL real (mismo flujo de usuario de prueba con limpieza, sin dejar rastro).
 
 ---
 
@@ -424,14 +450,14 @@ Según AGENTS.md:
 SEGURIDAD    ████████████████████ ✅ 100%
 ARQUITECTURA ████████████████████ ✅ 100%
 LÓGICA NEG.  ████████████████████ ✅ 100%
-TESTING      █████████████████░░░ 🟡  85% (unit ✅ / integración CSRF ✅ / integración endpoints ⏳)
-FRONTEND     ██████████████████░░ 🟡  90% (código ✅ / verificación E2E ⏳)
+TESTING      ████████████████████ ✅ 100% (unit ✅ / integración CSRF ✅ / integración endpoints ✅)
+FRONTEND     ████████████████████ ✅ 100% (código ✅ / verificación E2E ✅)
 DOCUMENTAC.  ████████████████████ ✅ 100%
 
-Progreso General: ███████████████████░░ 95%
+Progreso General: ████████████████████ 100%
 ```
 
-**Último BUILD:** 2026-09-14 - BUILD SUCCESS ✅ (71/71 tests, 0 fallos, corre en CI)  
+**Último BUILD:** 2026-09-14 - BUILD SUCCESS ✅ (119/119 tests, 0 fallos, corre en CI)  
 **Seguridad (Fase 1C):** fix de preflight CORS/CSRF que tumbaba el login con 403, admin.html
 restringido a ROLE_ADMIN en el servidor, autorización por propietario también en
 `eliminarReserva`, y escapeHtml() contra XSS almacenado en todas las vistas dinámicas del
@@ -441,5 +467,19 @@ respuestas de API validadas antes de usarse, mismatches de DTO en Clase corregid
 ya no es fuente de verdad de negocio.  
 **Documentación:** OpenAPI/Swagger habilitado y verificado en vivo, README.md, guía de
 deployment y manual de usuario creados.  
-**Próximo paso:** integration tests de Fase 4 y verificación E2E de Fase 5 contra MySQL real
-(ambos bloqueados hoy por falta de acceso a `DB_USERNAME`/`DB_PASSWORD` locales).
+**Testing (2026-09-14):** 47 integration tests HTTP nuevos (controller→service→repository→H2,
+sin mocks) para Cancha, Clase, Reserva, Inscripcion y Usuario, sumando 118/118 tests en CI.  
+**Verificación E2E (2026-09-14):** backend levantado contra el MySQL real (`sportcourt`, vía
+contenedor Docker local `mysql-sportcourt`) — lecturas (`/api/canchas`, `/api/clases`, `/api/csrf`,
+autorización 403 sin sesión) y un flujo de escritura completo (usuario de prueba → login real →
+crear reserva → crear inscripción → verificar → eliminar todo) confirmados correctos, sin dejar
+datos residuales (conteos de tablas verificados idénticos antes/después).  
+**Bugs detectados y corregidos (2026-09-14):**
+1. `AccessDeniedException` de los chequeos de propietario (Reserva/Inscripcion) no tenía handler
+   específico → respondía 500 en vez de 403. Fix: `@ExceptionHandler(AccessDeniedException.class)`
+   en `GlobalExceptionHandler`.
+2. Crear una reserva sobre una cancha con `capacidad` NULL en MySQL (canchas reales id 1 y 2)
+   lanzaba `NullPointerException` → 500. Fix: `ReservaService` trata `capacidad` NULL como 1.
+   Ambos con tests de regresión (unit + integration) y reverificados en vivo contra el MySQL real.  
+**Próximo paso:** ninguno bloqueante — proyecto al 100% en las 7 fases, sin issues abiertos
+conocidos.

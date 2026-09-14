@@ -99,7 +99,8 @@ npm run build:css  # compila minificado, para producción
 ## Tests
 
 ```bash
-# Backend (71 tests: unitarios + contexto Spring con H2 en memoria + integración CSRF)
+# Backend (119 tests: unitarios + contexto Spring con H2 en memoria + integración CSRF
+# + integración HTTP de endpoints, todo con H2 en memoria)
 cd backend
 ./mvnw test
 
