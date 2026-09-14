@@ -18,6 +18,11 @@
 > autorización por propietario en reservas/inscripciones, `admin.html` restringido a
 > `ROLE_ADMIN` a nivel de servidor, CSP, y `escapeHtml()` contra XSS almacenado en el
 > frontend— se documenta como Fase 1B/1C en `docs/PROYECTO_STATUS.md`, no aquí.
+>
+> **Actualización posterior (Fase 1D, 2026-09-14):** ajuste del mapeo entre el valor de
+> negocio del rol (`admin`/`usuario`, guardado en la columna `rol` de MySQL) y la authority
+> interna de Spring Security (`ROLE_ADMIN`/`ROLE_USUARIO`, construida en `LoginController` y
+> usada solo en memoria vía `hasRole(...)`) — ver Fase 1D en `docs/PROYECTO_STATUS.md`.
 
 ---
 

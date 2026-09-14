@@ -37,7 +37,7 @@ class UsuarioControllerTest extends AbstractControllerTest {
     @DisplayName("GET /api/usuarios como usuario sin rol ADMIN devuelve 403")
     void listarUsuariosComoUsuarioNoAdminDevuelve403() throws Exception {
         String email = uniqueEmail("usuarios-user");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         HttpResponse<String> response = get(session, "/api/usuarios");
@@ -49,8 +49,8 @@ class UsuarioControllerTest extends AbstractControllerTest {
     @DisplayName("GET /api/usuarios como ADMIN devuelve la lista sin exponer contraseñas")
     void listarUsuariosComoAdmin() throws Exception {
         String adminEmail = uniqueEmail("usuarios-admin");
-        Usuario admin = crearUsuario(adminEmail, "AdminPass123", "ADMIN");
-        crearUsuario(uniqueEmail("usuarios-otro"), "OtroPass123", "USER");
+        Usuario admin = crearUsuario(adminEmail, "AdminPass123", "admin");
+        crearUsuario(uniqueEmail("usuarios-otro"), "OtroPass123", "usuario");
         Session session = login(adminEmail, "AdminPass123");
 
         HttpResponse<String> response = get(session, "/api/usuarios");
@@ -68,7 +68,7 @@ class UsuarioControllerTest extends AbstractControllerTest {
             if (nodo.get("id").asInt() == admin.getId()) {
                 contieneAdmin = true;
                 assertEquals(adminEmail, nodo.get("email").asText());
-                assertEquals("ADMIN", nodo.get("rol").asText());
+                assertEquals("admin", nodo.get("rol").asText());
             }
         }
         assertTrue(contieneAdmin);
@@ -78,10 +78,10 @@ class UsuarioControllerTest extends AbstractControllerTest {
     @DisplayName("GET /api/usuarios/{id} como ADMIN devuelve el usuario sin contraseña")
     void buscarUsuarioComoAdmin() throws Exception {
         String adminEmail = uniqueEmail("usuarios-admin-get");
-        crearUsuario(adminEmail, "AdminPass123", "ADMIN");
+        crearUsuario(adminEmail, "AdminPass123", "admin");
         Session session = login(adminEmail, "AdminPass123");
 
-        Usuario objetivo = crearUsuario(uniqueEmail("usuarios-objetivo"), "ObjPass123", "USER");
+        Usuario objetivo = crearUsuario(uniqueEmail("usuarios-objetivo"), "ObjPass123", "usuario");
 
         HttpResponse<String> response = get(session, "/api/usuarios/" + objetivo.getId());
 
@@ -95,7 +95,7 @@ class UsuarioControllerTest extends AbstractControllerTest {
     @DisplayName("GET /api/usuarios/{id} inexistente como ADMIN devuelve 404")
     void buscarUsuarioInexistenteComoAdminDevuelve404() throws Exception {
         String adminEmail = uniqueEmail("usuarios-admin-404");
-        crearUsuario(adminEmail, "AdminPass123", "ADMIN");
+        crearUsuario(adminEmail, "AdminPass123", "admin");
         Session session = login(adminEmail, "AdminPass123");
 
         HttpResponse<String> response = get(session, "/api/usuarios/999999");

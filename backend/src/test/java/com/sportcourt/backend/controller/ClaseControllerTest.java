@@ -88,7 +88,7 @@ class ClaseControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/clases como ADMIN crea la clase (201)")
     void crearClaseComoAdmin() throws Exception {
         String email = uniqueEmail("clase-admin");
-        crearUsuario(email, "AdminPass123", "ADMIN");
+        crearUsuario(email, "AdminPass123", "admin");
         Session session = login(email, "AdminPass123");
 
         Map<String, Object> dto = Map.of(
@@ -112,7 +112,7 @@ class ClaseControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/clases con campos requeridos vacíos devuelve 400")
     void crearClaseConDatosInvalidosDevuelve400() throws Exception {
         String email = uniqueEmail("clase-admin-invalido");
-        crearUsuario(email, "AdminPass123", "ADMIN");
+        crearUsuario(email, "AdminPass123", "admin");
         Session session = login(email, "AdminPass123");
 
         Map<String, Object> dtoInvalido = Map.of(
@@ -135,7 +135,7 @@ class ClaseControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/clases como usuario sin rol ADMIN devuelve 403")
     void crearClaseComoUsuarioNoAdminDevuelve403() throws Exception {
         String email = uniqueEmail("clase-user");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Map<String, Object> dto = Map.of(
@@ -151,7 +151,7 @@ class ClaseControllerTest extends AbstractControllerTest {
     @DisplayName("PUT /api/clases/{id} como ADMIN actualiza la clase")
     void actualizarClaseComoAdmin() throws Exception {
         String email = uniqueEmail("clase-admin-put");
-        crearUsuario(email, "AdminPass123", "ADMIN");
+        crearUsuario(email, "AdminPass123", "admin");
         Session session = login(email, "AdminPass123");
 
         Map<String, Object> dto = Map.of(
@@ -170,7 +170,7 @@ class ClaseControllerTest extends AbstractControllerTest {
     @DisplayName("DELETE /api/clases/{id} como ADMIN elimina la clase (204)")
     void eliminarClaseComoAdmin() throws Exception {
         String email = uniqueEmail("clase-admin-delete");
-        crearUsuario(email, "AdminPass123", "ADMIN");
+        crearUsuario(email, "AdminPass123", "admin");
         Session session = login(email, "AdminPass123");
 
         HttpResponse<String> response = mutate(session, "DELETE", "/api/clases/" + claseSeed.getId(), null);
@@ -183,7 +183,7 @@ class ClaseControllerTest extends AbstractControllerTest {
     @DisplayName("DELETE /api/clases/{id} como usuario sin rol ADMIN devuelve 403")
     void eliminarClaseComoUsuarioNoAdminDevuelve403() throws Exception {
         String email = uniqueEmail("clase-user-delete");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         HttpResponse<String> response = mutate(session, "DELETE", "/api/clases/" + claseSeed.getId(), null);

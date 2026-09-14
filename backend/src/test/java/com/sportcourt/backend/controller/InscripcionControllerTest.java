@@ -67,7 +67,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/inscripciones autenticado crea la inscripción y fuerza el usuarioId (201)")
     void crearInscripcionExitosa() throws Exception {
         String email = uniqueEmail("inscripcion-user");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Clase clase = crearClase(5);
@@ -84,7 +84,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/inscripciones sin claseId devuelve 400 (validación)")
     void crearInscripcionSinClaseIdDevuelve400() throws Exception {
         String email = uniqueEmail("inscripcion-invalida");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Map<String, Object> dto = new java.util.HashMap<>();
@@ -103,7 +103,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/inscripciones con clase inexistente devuelve 404")
     void crearInscripcionConClaseInexistenteDevuelve404() throws Exception {
         String email = uniqueEmail("inscripcion-clase-404");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         HttpResponse<String> response = mutate(session, "POST", "/api/inscripciones", inscripcionDto(999999));
@@ -115,7 +115,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/inscripciones duplicada (mismo usuario, misma clase) devuelve 409")
     void crearInscripcionDuplicadaDevuelve409() throws Exception {
         String email = uniqueEmail("inscripcion-duplicada");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Clase clase = crearClase(5); // cupos amplios: aísla la validación de duplicado
@@ -136,14 +136,14 @@ class InscripcionControllerTest extends AbstractControllerTest {
         Clase clase = crearClase(1); // 1 solo cupo
 
         String email1 = uniqueEmail("inscripcion-cupo-1");
-        crearUsuario(email1, "UserPass123", "USER");
+        crearUsuario(email1, "UserPass123", "usuario");
         Session session1 = login(email1, "UserPass123");
 
         HttpResponse<String> primera = mutate(session1, "POST", "/api/inscripciones", inscripcionDto(clase.getId()));
         assertEquals(201, primera.statusCode(), primera.body());
 
         String email2 = uniqueEmail("inscripcion-cupo-2");
-        crearUsuario(email2, "UserPass123", "USER");
+        crearUsuario(email2, "UserPass123", "usuario");
         Session session2 = login(email2, "UserPass123");
 
         // Usuario DIFERENTE (no es duplicado) pero ya no hay cupos (1/1 ocupado)
@@ -158,7 +158,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     @DisplayName("GET /api/inscripciones/{id} como dueño devuelve 200")
     void obtenerInscripcionComoDueño() throws Exception {
         String email = uniqueEmail("inscripcion-owner-get");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Clase clase = crearClase(5);
@@ -176,7 +176,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     @DisplayName("GET /api/inscripciones/{id} inexistente devuelve 404")
     void obtenerInscripcionInexistenteDevuelve404() throws Exception {
         String email = uniqueEmail("inscripcion-404");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         HttpResponse<String> response = get(session, "/api/inscripciones/999999");
@@ -188,7 +188,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     @DisplayName("GET /api/inscripciones/{id} de otro usuario devuelve 403 (autorización por propietario)")
     void obtenerInscripcionDeOtroUsuarioDevuelve403() throws Exception {
         String emailDueño = uniqueEmail("inscripcion-owner-x");
-        crearUsuario(emailDueño, "UserPass123", "USER");
+        crearUsuario(emailDueño, "UserPass123", "usuario");
         Session sesionDueño = login(emailDueño, "UserPass123");
 
         Clase clase = crearClase(5);
@@ -196,7 +196,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
         int id = json(creada).get("id").asInt();
 
         String emailOtro = uniqueEmail("inscripcion-otro");
-        crearUsuario(emailOtro, "UserPass123", "USER");
+        crearUsuario(emailOtro, "UserPass123", "usuario");
         Session sesionOtro = login(emailOtro, "UserPass123");
 
         HttpResponse<String> response = get(sesionOtro, "/api/inscripciones/" + id);
@@ -208,7 +208,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     @DisplayName("PUT /api/inscripciones/{id}/cancelar como dueño cancela la inscripción (200)")
     void cancelarInscripcionComoDueño() throws Exception {
         String email = uniqueEmail("inscripcion-cancelar-owner");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Clase clase = crearClase(5);
@@ -226,7 +226,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     @DisplayName("DELETE /api/inscripciones/{id} de otro usuario (no ADMIN) devuelve 403 (autorización por propietario)")
     void eliminarInscripcionDeOtroUsuarioDevuelve403() throws Exception {
         String emailDueño = uniqueEmail("inscripcion-delete-owner");
-        crearUsuario(emailDueño, "UserPass123", "USER");
+        crearUsuario(emailDueño, "UserPass123", "usuario");
         Session sesionDueño = login(emailDueño, "UserPass123");
 
         Clase clase = crearClase(5);
@@ -234,7 +234,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
         int id = json(creada).get("id").asInt();
 
         String emailOtro = uniqueEmail("inscripcion-delete-otro");
-        crearUsuario(emailOtro, "UserPass123", "USER");
+        crearUsuario(emailOtro, "UserPass123", "usuario");
         Session sesionOtro = login(emailOtro, "UserPass123");
 
         HttpResponse<String> response = mutate(sesionOtro, "DELETE", "/api/inscripciones/" + id, null);
@@ -246,7 +246,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     @DisplayName("DELETE /api/inscripciones/{id} como dueño elimina la inscripción (204)")
     void eliminarInscripcionComoDueño() throws Exception {
         String email = uniqueEmail("inscripcion-delete-owner-ok");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Clase clase = crearClase(5);

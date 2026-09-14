@@ -75,7 +75,7 @@ class ReservaControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/reservas autenticado crea la reserva y fuerza el usuarioId de la sesión (201)")
     void crearReservaExitosa() throws Exception {
         String email = uniqueEmail("reserva-user");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Cancha cancha = crearCancha(5);
@@ -95,7 +95,7 @@ class ReservaControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/reservas sin canchaId devuelve 400 (validación)")
     void crearReservaSinCanchaIdDevuelve400() throws Exception {
         String email = uniqueEmail("reserva-invalida");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Map<String, Object> dto = new java.util.HashMap<>();
@@ -116,7 +116,7 @@ class ReservaControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/reservas con cancha inexistente devuelve 404")
     void crearReservaConCanchaInexistenteDevuelve404() throws Exception {
         String email = uniqueEmail("reserva-cancha-404");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         HttpResponse<String> response = mutate(session, "POST", "/api/reservas",
@@ -129,7 +129,7 @@ class ReservaControllerTest extends AbstractControllerTest {
     @DisplayName("POST /api/reservas duplicada (mismo usuario, horario solapado) devuelve 409")
     void crearReservaDuplicadaDevuelve409() throws Exception {
         String email = uniqueEmail("reserva-duplicada");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Cancha cancha = crearCancha(5); // capacidad amplia: aísla la validación de duplicado
@@ -155,7 +155,7 @@ class ReservaControllerTest extends AbstractControllerTest {
         LocalDate fecha = LocalDate.now().plusDays(5);
 
         String email1 = uniqueEmail("reserva-cap-1");
-        crearUsuario(email1, "UserPass123", "USER");
+        crearUsuario(email1, "UserPass123", "usuario");
         Session session1 = login(email1, "UserPass123");
 
         HttpResponse<String> primera = mutate(session1, "POST", "/api/reservas",
@@ -163,7 +163,7 @@ class ReservaControllerTest extends AbstractControllerTest {
         assertEquals(201, primera.statusCode(), primera.body());
 
         String email2 = uniqueEmail("reserva-cap-2");
-        crearUsuario(email2, "UserPass123", "USER");
+        crearUsuario(email2, "UserPass123", "usuario");
         Session session2 = login(email2, "UserPass123");
 
         // Mismo horario exacto, usuario DIFERENTE: no es "duplicada" (usuario
@@ -180,7 +180,7 @@ class ReservaControllerTest extends AbstractControllerTest {
     @DisplayName("GET /api/reservas/{id} como dueño devuelve 200")
     void obtenerReservaComoDueño() throws Exception {
         String email = uniqueEmail("reserva-owner-get");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Cancha cancha = crearCancha(5);
@@ -199,7 +199,7 @@ class ReservaControllerTest extends AbstractControllerTest {
     @DisplayName("GET /api/reservas/{id} inexistente devuelve 404")
     void obtenerReservaInexistenteDevuelve404() throws Exception {
         String email = uniqueEmail("reserva-404");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         HttpResponse<String> response = get(session, "/api/reservas/999999");
@@ -211,7 +211,7 @@ class ReservaControllerTest extends AbstractControllerTest {
     @DisplayName("GET /api/reservas/{id} de otro usuario devuelve 403 (autorización por propietario)")
     void obtenerReservaDeOtroUsuarioDevuelve403() throws Exception {
         String emailDueño = uniqueEmail("reserva-owner-x");
-        crearUsuario(emailDueño, "UserPass123", "USER");
+        crearUsuario(emailDueño, "UserPass123", "usuario");
         Session sesionDueño = login(emailDueño, "UserPass123");
 
         Cancha cancha = crearCancha(5);
@@ -220,7 +220,7 @@ class ReservaControllerTest extends AbstractControllerTest {
         int id = json(creada).get("id").asInt();
 
         String emailOtro = uniqueEmail("reserva-otro");
-        crearUsuario(emailOtro, "UserPass123", "USER");
+        crearUsuario(emailOtro, "UserPass123", "usuario");
         Session sesionOtro = login(emailOtro, "UserPass123");
 
         HttpResponse<String> response = get(sesionOtro, "/api/reservas/" + id);
@@ -232,7 +232,7 @@ class ReservaControllerTest extends AbstractControllerTest {
     @DisplayName("PUT /api/reservas/{id}/cancelar como dueño cancela la reserva (200)")
     void cancelarReservaComoDueño() throws Exception {
         String email = uniqueEmail("reserva-cancelar-owner");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Cancha cancha = crearCancha(5);
@@ -251,7 +251,7 @@ class ReservaControllerTest extends AbstractControllerTest {
     @DisplayName("PUT /api/reservas/{id}/cancelar de otro usuario devuelve 403 (autorización por propietario)")
     void cancelarReservaDeOtroUsuarioDevuelve403() throws Exception {
         String emailDueño = uniqueEmail("reserva-cancelar-owner-x");
-        crearUsuario(emailDueño, "UserPass123", "USER");
+        crearUsuario(emailDueño, "UserPass123", "usuario");
         Session sesionDueño = login(emailDueño, "UserPass123");
 
         Cancha cancha = crearCancha(5);
@@ -260,7 +260,7 @@ class ReservaControllerTest extends AbstractControllerTest {
         int id = json(creada).get("id").asInt();
 
         String emailOtro = uniqueEmail("reserva-cancelar-otro");
-        crearUsuario(emailOtro, "UserPass123", "USER");
+        crearUsuario(emailOtro, "UserPass123", "usuario");
         Session sesionOtro = login(emailOtro, "UserPass123");
 
         HttpResponse<String> response = mutate(sesionOtro, "PUT", "/api/reservas/" + id + "/cancelar", null);
@@ -273,7 +273,7 @@ class ReservaControllerTest extends AbstractControllerTest {
             + "(restringido a nivel de SecurityConfig, ni siquiera llega al service)")
     void eliminarReservaComoUsuarioNoAdminDevuelve403() throws Exception {
         String email = uniqueEmail("reserva-delete-user");
-        crearUsuario(email, "UserPass123", "USER");
+        crearUsuario(email, "UserPass123", "usuario");
         Session session = login(email, "UserPass123");
 
         Cancha cancha = crearCancha(5);
@@ -290,7 +290,7 @@ class ReservaControllerTest extends AbstractControllerTest {
     @DisplayName("DELETE /api/reservas/{id} como ADMIN elimina la reserva de otro usuario (204)")
     void eliminarReservaComoAdmin() throws Exception {
         String emailDueño = uniqueEmail("reserva-delete-owner");
-        crearUsuario(emailDueño, "UserPass123", "USER");
+        crearUsuario(emailDueño, "UserPass123", "usuario");
         Session sesionDueño = login(emailDueño, "UserPass123");
 
         Cancha cancha = crearCancha(5);
@@ -299,7 +299,7 @@ class ReservaControllerTest extends AbstractControllerTest {
         int id = json(creada).get("id").asInt();
 
         String emailAdmin = uniqueEmail("reserva-delete-admin");
-        crearUsuario(emailAdmin, "AdminPass123", "ADMIN");
+        crearUsuario(emailAdmin, "AdminPass123", "admin");
         Session sesionAdmin = login(emailAdmin, "AdminPass123");
 
         HttpResponse<String> response = mutate(sesionAdmin, "DELETE", "/api/reservas/" + id, null);

@@ -71,7 +71,7 @@ public class LoginController {
         String rol = usuario.getRol();
 
         if (rol == null || rol.isBlank()) {
-            rol = "USER";
+            rol = "usuario";
         }
 
         Authentication authentication =
