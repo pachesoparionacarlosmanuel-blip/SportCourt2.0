@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:8080/api';
+const API_URL = 'https://stunning-truth-production-0b63.up.railway.app/api';
 
 // Escapa texto antes de interpolarlo en innerHTML (tanto en contenido como
 // en atributos value="..."): sin esto, un nombre de cancha/clase/usuario
