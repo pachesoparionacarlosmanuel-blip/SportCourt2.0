@@ -715,6 +715,11 @@ if (reservasList) {
     const cancel = e.target.closest('.cancel-btn');
     if (cancel) {
       const id = cancel.dataset.id;
+      const confirmar = confirm('¿Estás seguro de que deseas cancelar esta reserva?');
+
+      if (!confirmar) {
+        return;
+      }
       try {
         const response = await fetch(API_URL + '/reservas/' + id + '/cancelar', {
           method: 'PUT',
