@@ -9,6 +9,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
 public class SecurityConfig {
@@ -25,7 +26,14 @@ public class SecurityConfig {
          * Configuración principal de seguridad.
          */
         @Bean
-        public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
+        public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                        CorsConfigurationSource corsConfigurationSource) throws Exception {
+
+                CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+
+                csrfTokenRepository.setCookieCustomizer(cookie -> cookie
+                                .sameSite("None")
+                                .secure(true));
 
                 http
                                 // Conecta el CORS de CorsConfig.java con Spring Security para que
@@ -45,9 +53,7 @@ public class SecurityConfig {
                                 // el handler por defecto (XorCsrfTokenRequestAttributeHandler)
                                 // ese valor no coincide con el que el servidor espera.
                                 .csrf(csrf -> csrf
-                                                .csrfTokenRepository(
-                                                                org.springframework.security.web.csrf.CookieCsrfTokenRepository
-                                                                                .withHttpOnlyFalse())
+                                                .csrfTokenRepository(csrfTokenRepository)
                                                 .csrfTokenRequestHandler(
                                                                 new org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler()))
 
@@ -74,7 +80,8 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
 
                                                 // Login público.
-                                                .requestMatchers("/api/login", "/api/csrf", "/api/usuarios/registro").permitAll()
+                                                .requestMatchers("/api/login", "/api/csrf", "/api/usuarios/registro")
+                                                .permitAll()
                                                 .requestMatchers("/api/csrf").permitAll()
 
                                                 // Documentación OpenAPI / Swagger UI.
