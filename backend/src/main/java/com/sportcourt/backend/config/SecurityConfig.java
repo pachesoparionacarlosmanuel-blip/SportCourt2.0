@@ -124,6 +124,11 @@ public class SecurityConfig {
                                                 .hasRole("ADMIN")
 
                                                 .requestMatchers(
+                                                                HttpMethod.DELETE,
+                                                                "/api/inscripciones/**")
+                                                .hasRole("ADMIN")
+
+                                                .requestMatchers(
                                                                 HttpMethod.POST,
                                                                 "/api/canchas/**",
                                                                 "/api/clases/**")
