@@ -243,7 +243,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/inscripciones/{id} como dueño elimina la inscripción (204)")
+    @DisplayName("DELETE /api/inscripciones/{id} como usuario normal devuelve 403")
     void eliminarInscripcionComoDueño() throws Exception {
         String email = uniqueEmail("inscripcion-delete-owner-ok");
         crearUsuario(email, "UserPass123", "usuario");
@@ -255,6 +255,6 @@ class InscripcionControllerTest extends AbstractControllerTest {
 
         HttpResponse<String> response = mutate(session, "DELETE", "/api/inscripciones/" + id, null);
 
-        assertEquals(204, response.statusCode());
+        assertEquals(403, response.statusCode());
     }
 }
