@@ -74,7 +74,7 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
 
                                                 // Login público.
-                                                .requestMatchers("/api/login", "/api/csrf").permitAll()
+                                                .requestMatchers("/api/login", "/api/csrf", "/api/usuarios/registro").permitAll()
                                                 .requestMatchers("/api/csrf").permitAll()
 
                                                 // Documentación OpenAPI / Swagger UI.

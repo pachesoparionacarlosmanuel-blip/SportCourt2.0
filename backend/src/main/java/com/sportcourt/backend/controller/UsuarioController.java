@@ -6,6 +6,10 @@ import com.sportcourt.backend.service.UsuarioService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.sportcourt.backend.dto.RegistroUsuarioDTO;
+import com.sportcourt.backend.model.Usuario;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -47,5 +51,23 @@ public class UsuarioController {
         UsuarioDTO usuarioDTO = usuarioService.obtenerUsuarioDTO(id);
 
         return ResponseEntity.ok(usuarioDTO);
+    }
+
+    /**
+     * Registrar un nuevo usuario.
+     */
+    @PostMapping("/usuarios/registro")
+    public ResponseEntity<UsuarioDTO> registrarUsuario(
+            @Valid @RequestBody RegistroUsuarioDTO registroDTO) {
+
+        Usuario usuario = usuarioService.registrarUsuario(registroDTO);
+
+        UsuarioDTO usuarioDTO = new UsuarioDTO(
+                usuario.getId(),
+                usuario.getNombre(),
+                usuario.getEmail(),
+                usuario.getRol());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(usuarioDTO);
     }
 }
