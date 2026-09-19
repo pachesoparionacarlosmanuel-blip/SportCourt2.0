@@ -83,17 +83,28 @@ function getCsrfToken() {
 // La cookie XSRF-TOKEN solo se planta cuando algo resuelve el CsrfToken en el
 // backend (carga diferida de Spring Security). Antes de la primera petición
 // que modifica datos hay que pedir GET /csrf para obtenerla.
+//
+// Frontend (GitHub Pages) y backend (Railway) son dominios distintos: una
+// cookie que planta railway.app nunca es legible desde document.cookie en
+// una página servida desde github.io (aislamiento por dominio del propio
+// navegador, independiente de SameSite/Secure). Por eso, si la cookie no
+// está disponible, se usa el token que el backend también devuelve en el
+// cuerpo JSON de GET /csrf (ver CsrfController) y se cachea en memoria.
+let cachedCsrfToken = null;
+
 async function getCsrfTokenAsync() {
-  const token = getCsrfToken();
-  if (token) return token;
+  const cookieToken = getCsrfToken();
+  if (cookieToken) return cookieToken;
 
   try {
-    await fetch(API_URL + '/csrf', { credentials: 'include' });
+    const respuesta = await fetch(API_URL + '/csrf', { credentials: 'include' });
+    const data = await respuesta.json();
+    cachedCsrfToken = data.token;
   } catch (error) {
     console.error('No se pudo obtener el token CSRF:', error);
   }
 
-  return getCsrfToken();
+  return getCsrfToken() || cachedCsrfToken;
 }
 
 // ---------------------------------------------
