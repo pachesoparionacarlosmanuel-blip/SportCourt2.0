@@ -141,6 +141,60 @@ if (loginForm) {
   });
 }
 
+// Registro de nuevos usuarios
+const registroForm = document.getElementById('registro-form');
+
+if (registroForm) {
+  registroForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const nombre = document.getElementById('nombre').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    const message = document.getElementById('registro-message');
+
+    if (password !== confirmPassword) {
+      message.textContent = 'Las contraseñas no coinciden.';
+      return;
+    }
+
+    try {
+      const respuesta = await fetch(API_URL + '/usuarios/registro', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': await getCsrfTokenAsync()
+        },
+        body: JSON.stringify({
+          nombre: nombre,
+          email: email,
+          password: password
+        })
+      });
+
+      const data = await respuesta.json();
+
+      if (!respuesta.ok) {
+        message.textContent =
+          data.message || 'No se pudo crear la cuenta.';
+        return;
+      }
+
+      message.textContent = 'Cuenta creada correctamente. Redirigiendo...';
+
+      setTimeout(function () {
+        window.location.href = 'login.html';
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error al registrar usuario:', error);
+      message.textContent = 'No se pudo conectar con el servidor.';
+    }
+  });
+}
+
 // Continuar como invitado (Login)
 const guestLink = document.getElementById('guest-link');
 if (guestLink) {

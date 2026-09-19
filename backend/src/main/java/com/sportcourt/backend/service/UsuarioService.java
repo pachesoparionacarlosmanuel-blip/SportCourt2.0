@@ -1,12 +1,14 @@
 package com.sportcourt.backend.service;
 
 import com.sportcourt.backend.dto.UsuarioDTO;
+import com.sportcourt.backend.dto.RegistroUsuarioDTO;
 import com.sportcourt.backend.exception.ResourceNotFoundException;
 import com.sportcourt.backend.model.Usuario;
 import com.sportcourt.backend.repository.UsuarioRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
@@ -20,8 +22,11 @@ public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
 
-    public UsuarioService(UsuarioRepository usuarioRepository) {
+    private final PasswordEncoder passwordEncoder;
+
+    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
@@ -99,5 +104,29 @@ public class UsuarioService {
         if (!usuarioRepository.existsById(usuarioId)) {
             throw new ResourceNotFoundException("Usuario con ID " + usuarioId + " no encontrado");
         }
+    }
+
+    /**
+     * Registrar un nuevo usuario.
+     * La contraseña se almacena utilizando BCrypt.
+     */
+    public Usuario registrarUsuario(RegistroUsuarioDTO registroDTO) {
+
+        if (usuarioRepository.findByEmail(registroDTO.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("El email ya está registrado");
+        }
+
+        Usuario usuario = new Usuario();
+
+        usuario.setNombre(registroDTO.getNombre());
+        usuario.setEmail(registroDTO.getEmail());
+
+        // Nunca guardar la contraseña en texto plano
+        usuario.setPassword(passwordEncoder.encode(registroDTO.getPassword()));
+
+        // Todo registro público comienza como usuario normal
+        usuario.setRol("usuario");
+
+        return usuarioRepository.save(usuario);
     }
 }
