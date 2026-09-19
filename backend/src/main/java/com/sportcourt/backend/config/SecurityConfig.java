@@ -82,7 +82,6 @@ public class SecurityConfig {
                                                 // Login público.
                                                 .requestMatchers("/api/login", "/api/csrf", "/api/usuarios/registro")
                                                 .permitAll()
-                                                .requestMatchers("/api/csrf").permitAll()
 
                                                 // Documentación OpenAPI / Swagger UI.
                                                 .requestMatchers(
