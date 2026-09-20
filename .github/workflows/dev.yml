@@ -1,21 +1,42 @@
-name: DEV - Prueba GitHub Actions
+name: DEV - CI SportCourt
 
 on:
   workflow_dispatch:
 
 jobs:
-  prueba-dev:
+  build-test-dev:
     runs-on: ubuntu-latest
 
     environment:
       name: DEV
 
     steps:
-      - name: Mostrar mensaje
-        run: 'echo "¡GitHub Actions está funcionando en DEV!"'
+      - name: Descargar código
+        uses: actions/checkout@v4
 
-      - name: Mostrar rama
-        run: 'echo "Rama: ${{ github.ref_name }}"'
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
 
-      - name: Mostrar repositorio
-        run: 'echo "Repositorio: ${{ github.repository }}"'
+      - name: Instalar dependencias frontend
+        run: npm ci
+
+      - name: Ejecutar tests frontend
+        run: npm test
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Ejecutar tests backend
+        working-directory: backend
+        run: ./mvnw test
+
+      - name: Construir backend
+        working-directory: backend
+        run: ./mvnw package -DskipTests
