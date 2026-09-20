@@ -89,59 +89,9 @@ entorno donde corra el `.jar` (systemd, Docker, panel del hosting, etc.):
 
 ## 4. Build y ejecución del backend
 
+### Ejecución local
+
 ```bash
 cd backend
-./mvnw clean package -DskipTests   # o sin -DskipTests si quieres correr los 119 tests antes
+./mvnw clean package -DskipTests
 java -jar target/backend-0.0.1-SNAPSHOT.jar
-```
-
-Para mantenerlo corriendo como servicio, usa systemd, Docker o el gestor de procesos
-que uses en tu hosting (pm2, supervisor, etc.), inyectando las variables de entorno
-de la sección anterior.
-
-## 5. Build y despliegue del frontend
-
-```bash
-npm install
-npm run build:css   # genera frontend/assets/css/app.min.css minificado
-```
-
-Sube el contenido de la carpeta [frontend/](../frontend/) (los `.html` y `assets/`) a tu
-servidor estático (Nginx, Apache, Netlify, un bucket estático, etc.). El frontend no
-necesita Node ni Java en producción, son archivos estáticos.
-
-## 6. Ajustes obligatorios antes de ir a producción
-
-Estos tres archivos tienen valores de **desarrollo local** (`localhost`) que hay que
-actualizar para el dominio real. Ningún cambio se hace automáticamente — repórtalos
-como pendientes de autorización antes de tocarlos:
-
-- **`frontend/assets/js/app.js`** — `const API_URL = 'http://localhost:8080/api';` (línea 1)
-  debe apuntar al dominio real del backend (con HTTPS en producción).
-- **`backend/src/main/java/com/sportcourt/backend/config/CorsConfig.java`** —
-  el bean `CorsConfigurationSource` (`setAllowedOrigins`) solo permite `localhost:3000` /
-  `localhost:5500` / `127.0.0.1:5500`; debe incluir el dominio real donde se sirva el
-  frontend. Esta fuente está conectada en `SecurityConfig.java` vía `.cors(...)` — no
-  cambiar solo un archivo sin el otro.
-- **Content-Security-Policy** en el `<meta>` de cada `.html` (`connect-src`) y en
-  `SecurityConfig.java` — ambos apuntan a `http://localhost:8080`; deben apuntar al
-  dominio real del backend.
-
-## 7. Checklist de seguridad para producción
-
-- [ ] HTTPS habilitado en backend y frontend (las cookies de sesión y CSRF deben ir
-      con `Secure` en producción).
-- [ ] `DB_PASSWORD` y demás variables gestionadas por el hosting/secret manager, nunca
-      committeadas.
-- [ ] CORS y CSP actualizados al dominio real (paso 6).
-- [ ] Evaluar si `/swagger-ui/**` y `/v3/api-docs/**` deben quedar públicos en
-      producción o restringirse (hoy están abiertos para facilitar el desarrollo;
-      ver `SecurityConfig.java`).
-- [ ] Backups periódicos de la base `sportcourt` configurados fuera de este repo.
-
-## 8. Verificación post-deploy
-
-1. `GET https://<tu-backend>/api/canchas` responde `200` con la lista real de MySQL.
-2. Login funciona y la cookie de sesión se setea correctamente sobre HTTPS.
-3. Una reserva de prueba aparece en la tabla `reserva` de MySQL.
-4. `https://<tu-backend>/swagger-ui/index.html` carga (si decidiste dejarlo público).
