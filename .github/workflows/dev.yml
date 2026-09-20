@@ -117,4 +117,6 @@ jobs:
 
       - name: Analizar dependencias Maven
         working-directory: backend
-        run: ./mvnw org.owasp:dependency-check-maven:12.2.2:check -DfailBuildOnCVSS=8
+        env:
+           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: ./mvnw org.owasp:dependency-check-maven:12.2.2:check -DfailBuildOnCVSS=8 -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
