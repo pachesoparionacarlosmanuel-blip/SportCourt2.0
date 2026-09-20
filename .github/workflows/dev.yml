@@ -1,0 +1,21 @@
+name: DEV - Prueba GitHub Actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prueba-dev:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: DEV
+
+    steps:
+      - name: Mostrar mensaje
+        run: echo "¡GitHub Actions está funcionando en DEV!"
+
+      - name: Mostrar rama
+        run: echo "Rama: ${{ github.ref_name }}"
+
+      - name: Mostrar repositorio
+        run: echo "Repositorio: ${{ github.repository }}"
