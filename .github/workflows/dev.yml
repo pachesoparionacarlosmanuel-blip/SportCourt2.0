@@ -76,6 +76,14 @@ jobs:
       - name: Descargar código
         uses: actions/checkout@v4
 
+      - name: Configurar Java 21
+        if: matrix.language == 'java'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
       - name: Inicializar CodeQL
         uses: github/codeql-action/init@v4
         with:
