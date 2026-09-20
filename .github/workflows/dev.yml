@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Mostrar mensaje
-        run: echo "¡GitHub Actions está funcionando en DEV!"
+        run: 'echo "¡GitHub Actions está funcionando en DEV!"'
 
       - name: Mostrar rama
-        run: echo "Rama: ${{ github.ref_name }}"
+        run: 'echo "Rama: ${{ github.ref_name }}"'
 
       - name: Mostrar repositorio
-        run: echo "Repositorio: ${{ github.repository }}"
+        run: 'echo "Repositorio: ${{ github.repository }}"'
