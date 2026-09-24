@@ -120,3 +120,71 @@ jobs:
         env:
            NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: ./mvnw org.owasp:dependency-check-maven:12.2.2:check -DfailBuildOnCVSS=8 -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+
+
+  docker-trivy:
+    name: Docker Build + Trivy
+    runs-on: ubuntu-latest
+    needs:
+      - build-test-dev
+      - security-codeql
+      - security-dependency-check
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Construir imagen Docker
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          load: true
+          push: false
+          tags: sportcourt2.0:${{ github.sha }}
+
+      - name: Escanear imagen con Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: sportcourt2.0:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: false
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+
+
+  publish-ghcr:
+    name: Publicar imagen en GHCR
+    runs-on: ubuntu-latest
+    needs:
+      - docker-trivy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Iniciar sesión en GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construir y publicar imagen
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/pachesoparionacarlosmanuel-blip/sportcourt2.0:${{ github.sha }}
+            ghcr.io/pachesoparionacarlosmanuel-blip/sportcourt2.0:latest

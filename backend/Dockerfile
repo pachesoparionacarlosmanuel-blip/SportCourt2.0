@@ -15,11 +15,19 @@ RUN ./mvnw clean package -DskipTests
 # =========================
 # Etapa 2: Ejecución
 # =========================
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jre-alpine
+
+# Actualizar paquetes del sistema a versiones con parches de seguridad
+RUN apk update && apk upgrade
 
 WORKDIR /app
 
-COPY --from=build /app/target/*.jar app.jar
+# Crear usuario no privilegiado para ejecutar la aplicación
+RUN addgroup -S spring && adduser -S -u 1001 -G spring spring
+
+COPY --from=build --chown=spring:spring /app/target/*.jar app.jar
+
+USER spring
 
 EXPOSE 8080
 
