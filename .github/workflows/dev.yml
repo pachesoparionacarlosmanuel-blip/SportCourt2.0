@@ -321,7 +321,6 @@ jobs:
             --service stunning-truth \
             --environment PROD \
             --project fce9e8e7-4284-49c6-8111-3761461d1cfd \
-            --yes
 
       - name: Verificar PROD
         run: |
