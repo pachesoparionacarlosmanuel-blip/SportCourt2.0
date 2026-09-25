@@ -122,7 +122,7 @@ if (loginForm) {
       const usuario = await respuesta.json();
 
       if (!respuesta.ok) {
-        alert(usuario.mensaje || 'Correo o contraseña incorrectos');
+        alert(usuario.message || 'Correo o contraseña incorrectos');
         return;
       }
 

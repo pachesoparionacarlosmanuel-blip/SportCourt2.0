@@ -3,6 +3,7 @@ package com.sportcourt.backend.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.sportcourt.backend.model.Cancha;
 import com.sportcourt.backend.repository.CanchaRepository;
+import com.sportcourt.backend.service.ReservaService;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -87,7 +88,7 @@ class ReservaControllerTest extends AbstractControllerTest {
         assertEquals(201, response.statusCode(), response.body());
         JsonNode body = json(response);
         assertEquals(cancha.getId(), body.get("canchaId").asInt());
-        assertEquals("activa", body.get("estado").asText());
+        assertEquals(ReservaService.ESTADO_INICIAL, body.get("estado").asText());
         assertTrue(body.get("usuarioId").asInt() > 0);
     }
 

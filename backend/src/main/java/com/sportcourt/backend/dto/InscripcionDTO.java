@@ -19,7 +19,7 @@ public class InscripcionDTO {
     @FutureOrPresent(message = "La fecha no puede ser en el pasado")
     private LocalDate fecha;
 
-    @NotBlank(message = "El estado es requerido")
+    // Lo asigna el backend (ver servicio); cualquier valor enviado se ignora.
     private String estado;
 
     // Constructores

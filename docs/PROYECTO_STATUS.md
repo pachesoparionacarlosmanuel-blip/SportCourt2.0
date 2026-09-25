@@ -70,7 +70,7 @@
 │ FASE 4: TESTING Y VALIDACIÓN                                  │
 │ ✅ COMPLETADA — 2026-09-14 (unit + integración de endpoints)   │
 │                                                                │
-│ - ✅ 118 tests (JUnit 5 + Mockito + 1 @SpringBootTest + 1       │
+│ - ✅ 129 tests (JUnit 5 + Mockito + 1 @SpringBootTest + 1       │
 │   integración CSRF end-to-end + 47 integration tests de        │
 │   endpoints), 0 fallos                                         │
 │ - ✅ Pruebas de duplicados y superposición de horarios         │
@@ -256,7 +256,7 @@
 |---------|-------|
 | **Archivos Java (main)** | 38 |
 | **Archivos Java (test)** | 13 |
-| **Tests (unit + contexto Spring + integración CSRF + integración de endpoints)** | 118 (0 fallos), corren en CI |
+| **Tests (unit + contexto Spring + integración CSRF + integración de endpoints)** | 129 (0 fallos), corren en CI |
 | **Servicios implementados** | 5 |
 | **Validaciones críticas** | 9 |
 | **Controladores actualizados** | 5 |
@@ -401,8 +401,8 @@
   - `BackendApplication.java` - Main app
 - `backend/src/test/java/com/sportcourt/backend/` - `BackendApplicationTests` (contexto Spring, perfil
   "test" con H2) + `CsrfLoginFlowTest` (4 tests de integración end-to-end del flujo CSRF, sin mocks)
-  + `service/` con 5 suites de unit tests + `controller/` con 5 suites de integración HTTP de
-  endpoints (119 tests en total)
+  + `service/` con 5 suites de unit tests + `controller/` con 6 suites de integración HTTP de
+  endpoints (129 tests en total)
 
 ### Base de Datos
 - `sportcourt` (MySQL)
@@ -505,7 +505,14 @@ DOCUMENTAC.  ████████████████████ ✅ 10
 Progreso General: ████████████████████ 100%
 ```
 
-**Último BUILD:** 2026-09-14 - BUILD SUCCESS ✅ (119/119 tests, 0 fallos, corre en CI)  
+**Último BUILD:** 2026-09-25 - BUILD SUCCESS ✅ (129/129 tests, 0 fallos, corre en CI)  
+**Correcciones (2026-09-25):** rotación del ID de sesión en `/api/login` (anti fijación de
+sesión); errores de login con el `ErrorResponse` estándar; el estado inicial de reservas
+(`confirmada`) e inscripciones (`inscrita`) lo asigna el backend y la edición conserva el
+estado; un ADMIN puede editar reservas ajenas conservando al dueño; bloqueo pesimista
+(`SELECT ... FOR UPDATE`) de la cancha/clase para no superar capacidad/cupos con peticiones
+simultáneas; `InscripcionService` consulta en BD en vez de `findAll()`; clase con cupos NULL
+responde 409 en vez de 500.  
 **Seguridad (Fase 1C):** fix de preflight CORS/CSRF que tumbaba el login con 403, admin.html
 restringido a ROLE_ADMIN en el servidor, autorización por propietario también en
 `eliminarReserva`, y escapeHtml() contra XSS almacenado en todas las vistas dinámicas del

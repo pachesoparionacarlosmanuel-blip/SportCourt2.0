@@ -2,12 +2,16 @@ package com.sportcourt.backend.controller;
 
 import com.sportcourt.backend.dto.LoginRequest;
 import com.sportcourt.backend.dto.LoginResponse;
+import com.sportcourt.backend.exception.ErrorResponse;
 import com.sportcourt.backend.model.Usuario;
 import com.sportcourt.backend.service.AuthService;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,9 +53,7 @@ public class LoginController {
                 datos.getPassword() == null ||
                 datos.getPassword().isBlank()) {
 
-            return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST)
-                    .body(new ErrorResponse("Email y contraseña son requeridos"));
+            return error(HttpStatus.BAD_REQUEST, "Email y contraseña son requeridos", request);
         }
 
         // Autenticar usuario mediante BCrypt
@@ -62,9 +64,7 @@ public class LoginController {
 
         // Credenciales incorrectas
         if (usuario == null) {
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body(new ErrorResponse("Email o contraseña incorrectos"));
+            return error(HttpStatus.UNAUTHORIZED, "Email o contraseña incorrectos", request);
         }
 
         // Crear autoridad según el rol del usuario
@@ -93,6 +93,13 @@ public class LoginController {
 
         SecurityContextHolder.setContext(context);
 
+        // Evitar fijación de sesión: si ya existía una sesión antes del login
+        // (creada siendo anónimo), se le asigna un ID nuevo para que un ID
+        // conocido de antemano no quede autenticado.
+        if (request.getSession(false) != null) {
+            request.changeSessionId();
+        }
+
         // Guardar autenticación en la sesión HTTP
         securityContextRepository.saveContext(
                 context,
@@ -112,22 +119,16 @@ public class LoginController {
     }
 
     /**
-     * DTO interno para respuestas de error.
+     * Respuesta de error con el mismo formato que GlobalExceptionHandler.
      */
-    public static class ErrorResponse {
-
-        private String mensaje;
-
-        public ErrorResponse(String mensaje) {
-            this.mensaje = mensaje;
-        }
-
-        public String getMensaje() {
-            return mensaje;
-        }
-
-        public void setMensaje(String mensaje) {
-            this.mensaje = mensaje;
-        }
+    private ResponseEntity<ErrorResponse> error(HttpStatus status, String mensaje, HttpServletRequest request) {
+        return ResponseEntity
+                .status(status)
+                .body(new ErrorResponse(
+                        LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME),
+                        status.value(),
+                        status.getReasonPhrase(),
+                        mensaje,
+                        request.getRequestURI()));
     }
 }

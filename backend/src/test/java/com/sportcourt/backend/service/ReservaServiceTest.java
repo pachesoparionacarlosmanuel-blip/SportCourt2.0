@@ -138,7 +138,88 @@ public class ReservaServiceTest {
                 assertEquals(1, resultado.getCanchaId());
                 assertEquals("activa", resultado.getEstado());
                 verify(canchaService).obtenerCancha(1);
+                verify(canchaService).bloquearCancha(1);
                 verify(reservaRepository).save(any(Reserva.class));
+        }
+
+        @Test
+        @DisplayName("🔒 El estado lo asigna el backend: se ignora el enviado por el cliente")
+        void crearReservaIgnoraEstadoDelCliente() {
+                autenticarUsuario(1, "usuario@test.com", "USER");
+                when(canchaService.obtenerCapacidadCancha(1)).thenReturn(10);
+                when(reservaRepository.save(any(Reserva.class)))
+                                .thenAnswer(invocation -> invocation.getArgument(0));
+
+                validReservaDTO.setEstado("cancelada");
+
+                Reserva resultado = reservaService.crearReserva(validReservaDTO);
+
+                assertEquals(ReservaService.ESTADO_INICIAL, resultado.getEstado());
+        }
+
+        @Test
+        @DisplayName("🔒 Actualizar conserva el estado actual aunque el cliente envíe otro")
+        void actualizarReservaConservaEstado() {
+                autenticarUsuario(1, "usuario@test.com", "USER");
+
+                Reserva reservaExistente = new Reserva();
+                reservaExistente.setId(1);
+                reservaExistente.setUsuarioId(1);
+                reservaExistente.setCanchaId(1);
+                reservaExistente.setFecha(LocalDate.of(2026, 9, 10));
+                reservaExistente.setHoraInicio(LocalTime.of(8, 0));
+                reservaExistente.setHoraFin(LocalTime.of(9, 0));
+                reservaExistente.setEstado("confirmada");
+
+                when(reservaRepository.findById(1)).thenReturn(Optional.of(reservaExistente));
+                when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
+                when(reservaRepository.save(any(Reserva.class)))
+                                .thenAnswer(invocation -> invocation.getArgument(0));
+
+                validReservaDTO.setEstado("pendiente");
+
+                Reserva resultado = reservaService.actualizarReserva(1, validReservaDTO);
+
+                assertEquals("confirmada", resultado.getEstado());
+                assertEquals(LocalTime.of(10, 0), resultado.getHoraInicio());
+        }
+
+        @Test
+        @DisplayName("Un ADMIN puede actualizar la reserva de otro usuario sin quedarse con ella")
+        void adminPuedeActualizarReservaDeOtroUsuario() {
+                autenticarUsuario(99, "admin@test.com", "ADMIN");
+
+                // mockReserva pertenece al usuario 1
+                when(reservaRepository.findById(1)).thenReturn(Optional.of(mockReserva));
+                when(canchaService.obtenerCapacidadCancha(1)).thenReturn(1);
+                when(reservaRepository.save(any(Reserva.class)))
+                                .thenAnswer(invocation -> invocation.getArgument(0));
+
+                validReservaDTO.setHoraInicio(LocalTime.of(12, 0));
+                validReservaDTO.setHoraFin(LocalTime.of(13, 0));
+
+                Reserva resultado = reservaService.actualizarReserva(1, validReservaDTO);
+
+                // El dueño se conserva y los duplicados se validan contra él
+                assertEquals(1, resultado.getUsuarioId());
+                assertEquals(LocalTime.of(12, 0), resultado.getHoraInicio());
+                verify(reservaRepository).buscarReservasDuplicadas(
+                                eq(1), eq(1), eq(LocalDate.of(2026, 9, 10)),
+                                eq(LocalTime.of(12, 0)), eq(LocalTime.of(13, 0)), eq(1));
+        }
+
+        @Test
+        @DisplayName("Un usuario no puede actualizar la reserva de otro usuario")
+        void usuarioNoPuedeActualizarReservaDeOtroUsuario() {
+                autenticarUsuario(2, "otro@test.com", "USER");
+
+                when(reservaRepository.findById(1)).thenReturn(Optional.of(mockReserva));
+
+                assertThrows(
+                                org.springframework.security.access.AccessDeniedException.class,
+                                () -> reservaService.actualizarReserva(1, validReservaDTO));
+
+                verify(reservaRepository, never()).save(any(Reserva.class));
         }
 
         @Test

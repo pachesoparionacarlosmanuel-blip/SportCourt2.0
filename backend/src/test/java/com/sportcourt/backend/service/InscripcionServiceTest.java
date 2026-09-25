@@ -92,7 +92,7 @@ public class InscripcionServiceTest {
         mockInscripcion.setUsuarioId(1);
         mockInscripcion.setClaseId(1);
         mockInscripcion.setFecha(LocalDate.of(2026, 9, 10));
-        mockInscripcion.setEstado("activa");
+        mockInscripcion.setEstado(InscripcionService.ESTADO_INICIAL);
 
     }
 
@@ -107,7 +107,8 @@ public class InscripcionServiceTest {
         // Arrange
         when(claseService.obtenerClase(1)).thenReturn(createMockClase());
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(10); // 10 cupos disponibles
-        when(inscripcionRepository.findAll()).thenReturn(List.of()); // No hay inscripciones existentes
+        when(inscripcionRepository.existeInscripcionActiva(1, 1)).thenReturn(false);
+        when(inscripcionRepository.contarInscripcionesActivas(1)).thenReturn(0L); // No hay inscripciones existentes
         when(inscripcionRepository.save(any(Inscripcion.class))).thenReturn(mockInscripcion);
 
         // Act
@@ -118,8 +119,9 @@ public class InscripcionServiceTest {
         assertEquals(1, resultado.getId());
         assertEquals(1, resultado.getUsuarioId());
         assertEquals(1, resultado.getClaseId());
-        assertEquals("activa", resultado.getEstado());
+        assertEquals(InscripcionService.ESTADO_INICIAL, resultado.getEstado());
         verify(claseService).obtenerClase(1);
+        verify(claseService).bloquearClase(1);
         verify(inscripcionRepository).save(any(Inscripcion.class));
     }
 
@@ -164,7 +166,7 @@ public class InscripcionServiceTest {
 
         // Arrange
         List<Inscripcion> inscripciones = List.of(mockInscripcion);
-        when(inscripcionRepository.findAll()).thenReturn(inscripciones);
+        when(inscripcionRepository.findByUsuarioId(1)).thenReturn(inscripciones);
 
         // Act
         List<Inscripcion> resultado = inscripcionService.listarInscripciones();
@@ -172,7 +174,8 @@ public class InscripcionServiceTest {
         // Assert
         assertNotNull(resultado);
         assertEquals(1, resultado.size());
-        verify(inscripcionRepository).findAll();
+        verify(inscripcionRepository).findByUsuarioId(1);
+        verify(inscripcionRepository, never()).findAll();
     }
 
     @Test
@@ -256,14 +259,9 @@ public class InscripcionServiceTest {
 
         autenticarUsuario(1, "usuario@test.com", "USER");
 
-        // Arrange: Usuario ya está inscrito
-        Inscripcion inscripcionExistente = new Inscripcion();
-        inscripcionExistente.setUsuarioId(1);
-        inscripcionExistente.setClaseId(1);
-        inscripcionExistente.setEstado("activa");
-
+        // Arrange: Usuario ya está inscrito (inscripción no cancelada)
         when(claseService.obtenerClase(1)).thenReturn(createMockClase());
-        when(inscripcionRepository.findAll()).thenReturn(List.of(inscripcionExistente));
+        when(inscripcionRepository.existeInscripcionActiva(1, 1)).thenReturn(true);
 
         // Act & Assert
         assertThrows(BusinessException.class, () -> {
@@ -279,15 +277,13 @@ public class InscripcionServiceTest {
 
         autenticarUsuario(1, "usuario@test.com", "USER");
 
-        // Arrange: Inscripción anterior está CANCELADA
-        Inscripcion inscripcionCancelada = new Inscripcion();
-        inscripcionCancelada.setUsuarioId(1);
-        inscripcionCancelada.setClaseId(1);
-        inscripcionCancelada.setEstado("cancelada"); // CANCELADA
-
+        // Arrange: la inscripción anterior está CANCELADA, así que la consulta
+        // de inscripciones activas no la encuentra ni la cuenta (el filtro por
+        // estado se prueba contra H2 en InscripcionControllerTest).
         when(claseService.obtenerClase(1)).thenReturn(createMockClase());
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(10); // 10 cupos disponibles
-        when(inscripcionRepository.findAll()).thenReturn(List.of(inscripcionCancelada));
+        when(inscripcionRepository.existeInscripcionActiva(1, 1)).thenReturn(false);
+        when(inscripcionRepository.contarInscripcionesActivas(1)).thenReturn(0L);
         when(inscripcionRepository.save(any(Inscripcion.class))).thenReturn(mockInscripcion);
 
         // Act
@@ -304,15 +300,11 @@ public class InscripcionServiceTest {
 
         autenticarUsuario(1, "usuario@test.com", "USER");
 
-        // Arrange: Otro usuario está en la misma clase
-        Inscripcion inscripcionOtroUsuario = new Inscripcion();
-        inscripcionOtroUsuario.setUsuarioId(2); // Diferente usuario
-        inscripcionOtroUsuario.setClaseId(1);
-        inscripcionOtroUsuario.setEstado("activa");
-
+        // Arrange: Otro usuario está en la misma clase (ocupa 1 cupo)
         when(claseService.obtenerClase(1)).thenReturn(createMockClase());
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(10); // 10 cupos disponibles
-        when(inscripcionRepository.findAll()).thenReturn(List.of(inscripcionOtroUsuario));
+        when(inscripcionRepository.existeInscripcionActiva(1, 1)).thenReturn(false);
+        when(inscripcionRepository.contarInscripcionesActivas(1)).thenReturn(1L);
         when(inscripcionRepository.save(any(Inscripcion.class))).thenReturn(mockInscripcion);
 
         // Act
@@ -336,12 +328,7 @@ public class InscripcionServiceTest {
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(1);
 
         // Ya hay 1 inscripción activa
-        Inscripcion inscripcionExistente = new Inscripcion();
-        inscripcionExistente.setUsuarioId(2);
-        inscripcionExistente.setClaseId(1);
-        inscripcionExistente.setEstado("activa");
-
-        when(inscripcionRepository.findAll()).thenReturn(List.of(inscripcionExistente));
+        when(inscripcionRepository.contarInscripcionesActivas(1)).thenReturn(1L);
 
         // Act & Assert
         assertThrows(BusinessException.class, () -> {
@@ -362,12 +349,7 @@ public class InscripcionServiceTest {
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(2); // 2 cupos
 
         // Ya hay 1 inscripción activa
-        Inscripcion inscripcionExistente = new Inscripcion();
-        inscripcionExistente.setUsuarioId(2);
-        inscripcionExistente.setClaseId(1);
-        inscripcionExistente.setEstado("activa");
-
-        when(inscripcionRepository.findAll()).thenReturn(List.of(inscripcionExistente));
+        when(inscripcionRepository.contarInscripcionesActivas(1)).thenReturn(1L);
         when(inscripcionRepository.save(any(Inscripcion.class))).thenReturn(mockInscripcion);
 
         // Act
@@ -389,17 +371,7 @@ public class InscripcionServiceTest {
         when(claseService.obtenerCuposDisponibles(1)).thenReturn(3);
 
         // Ya hay 2 inscripciones activas
-        Inscripcion inscripcion1 = new Inscripcion();
-        inscripcion1.setUsuarioId(2);
-        inscripcion1.setClaseId(1);
-        inscripcion1.setEstado("activa");
-
-        Inscripcion inscripcion2 = new Inscripcion();
-        inscripcion2.setUsuarioId(3);
-        inscripcion2.setClaseId(1);
-        inscripcion2.setEstado("activa");
-
-        when(inscripcionRepository.findAll()).thenReturn(List.of(inscripcion1, inscripcion2));
+        when(inscripcionRepository.contarInscripcionesActivas(1)).thenReturn(2L);
         when(inscripcionRepository.save(any(Inscripcion.class))).thenReturn(mockInscripcion);
 
         // Act
@@ -408,6 +380,37 @@ public class InscripcionServiceTest {
         // Assert
         assertNotNull(resultado);
         verify(inscripcionRepository).save(any(Inscripcion.class));
+    }
+
+    @Test
+    @DisplayName("🔒 El estado lo asigna el backend: se ignora el enviado por el cliente")
+    void crearInscripcionIgnoraEstadoDelCliente() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
+        when(claseService.obtenerCuposDisponibles(1)).thenReturn(10);
+        when(inscripcionRepository.save(any(Inscripcion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        validInscripcionDTO.setEstado("cancelada");
+
+        Inscripcion resultado = inscripcionService.crearInscripcion(validInscripcionDTO);
+
+        assertEquals(InscripcionService.ESTADO_INICIAL, resultado.getEstado());
+    }
+
+    @Test
+    @DisplayName("❌ VALIDACIÓN 4: Clase sin cupos definidos no admite inscripciones (no 500)")
+    void crearInscripcionClaseSinCuposDefinidos() {
+
+        autenticarUsuario(1, "usuario@test.com", "USER");
+
+        when(claseService.obtenerCuposDisponibles(1)).thenReturn(null);
+
+        assertThrows(BusinessException.class,
+                () -> inscripcionService.crearInscripcion(validInscripcionDTO));
+
+        verify(inscripcionRepository, never()).save(any());
     }
 
     // ==================== HELPER METHODS ====================

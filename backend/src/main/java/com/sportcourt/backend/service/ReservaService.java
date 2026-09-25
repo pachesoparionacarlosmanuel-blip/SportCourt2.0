@@ -21,6 +21,9 @@ import java.util.List;
 @Transactional
 public class ReservaService {
 
+    /** Estado con el que el backend crea toda reserva nueva. */
+    public static final String ESTADO_INICIAL = "confirmada";
+
     private final ReservaRepository reservaRepository;
     private final UsuarioService usuarioService;
     private final CanchaService canchaService;
@@ -53,6 +56,10 @@ public class ReservaService {
         // Validación 2: Cancha existe
         canchaService.obtenerCancha(reservaDTO.getCanchaId());
 
+        // Serializa las reservas concurrentes sobre la misma cancha hasta
+        // que esta transacción termine (evita superar la capacidad).
+        canchaService.bloquearCancha(reservaDTO.getCanchaId());
+
         // Validación 3: Hora válida
         validarHorarios(reservaDTO.getHoraInicio(), reservaDTO.getHoraFin());
 
@@ -74,28 +81,40 @@ public class ReservaService {
         reserva.setFecha(reservaDTO.getFecha());
         reserva.setHoraInicio(reservaDTO.getHoraInicio());
         reserva.setHoraFin(reservaDTO.getHoraFin());
-        reserva.setEstado(reservaDTO.getEstado());
+        // El estado lo decide el backend, no el cliente.
+        reserva.setEstado(ESTADO_INICIAL);
 
         return reservaRepository.save(reserva);
     }
 
     /**
-     * Actualizar una reserva existente
+     * Actualizar una reserva existente (su dueño o un ADMIN).
+     * Cambia cancha, fecha y horario; el dueño y el estado se conservan
+     * (para cancelar se usa cancelarReserva).
      */
     public Reserva actualizarReserva(Integer id, ReservaDTO reservaDTO) {
         Reserva reserva = obtenerReserva(id);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
         Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
 
-        if (!reserva.getUsuarioId().equals(usuarioAutenticadoId)) {
+        if (!esAdmin && !reserva.getUsuarioId().equals(usuarioAutenticadoId)) {
             throw new org.springframework.security.access.AccessDeniedException(
                     "No tienes permiso para modificar esta reserva");
         }
 
         // Validaciones similares a crear (excepto duplicados con ella misma)
         canchaService.obtenerCancha(reservaDTO.getCanchaId());
+        canchaService.bloquearCancha(reservaDTO.getCanchaId());
         validarHorarios(reservaDTO.getHoraInicio(), reservaDTO.getHoraFin());
 
-        reservaDTO.setUsuarioId(usuarioAutenticadoId);
+        // Los duplicados se validan contra el dueño de la reserva, que no
+        // cambia aunque la edite un ADMIN.
+        reservaDTO.setUsuarioId(reserva.getUsuarioId());
 
         // Validar que no exista otra reserva en ese horario
         validarNoDuplicada(reservaDTO, id);
@@ -107,12 +126,10 @@ public class ReservaService {
                 reservaDTO.getHoraFin(),
                 id);
 
-        reserva.setUsuarioId(usuarioAutenticadoId);
         reserva.setCanchaId(reservaDTO.getCanchaId());
         reserva.setFecha(reservaDTO.getFecha());
         reserva.setHoraInicio(reservaDTO.getHoraInicio());
         reserva.setHoraFin(reservaDTO.getHoraFin());
-        reserva.setEstado(reservaDTO.getEstado());
 
         return reservaRepository.save(reserva);
     }

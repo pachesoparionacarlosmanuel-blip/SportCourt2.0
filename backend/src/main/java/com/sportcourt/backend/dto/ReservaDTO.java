@@ -27,7 +27,7 @@ public class ReservaDTO {
     @NotNull(message = "La hora de fin es requerida")
     private LocalTime horaFin;
 
-    @NotBlank(message = "El estado es requerido")
+    // Lo asigna el backend (ver servicio); cualquier valor enviado se ignora.
     private String estado;
 
     // Constructores

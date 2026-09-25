@@ -36,6 +36,18 @@ public class CanchaService {
     }
 
     /**
+     * Bloquea la fila de la cancha hasta el fin de la transacción actual
+     * (SELECT ... FOR UPDATE), para que dos operaciones simultáneas no
+     * superen su capacidad validando ambas con el mismo conteo.
+     * @param id ID de la cancha
+     * @throws ResourceNotFoundException si no existe
+     */
+    public void bloquearCancha(Integer id) {
+        canchaRepository.findByIdParaActualizar(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cancha con ID " + id + " no encontrada"));
+    }
+
+    /**
      * Listar todas las canchas
      * @return Lista de canchas
      */

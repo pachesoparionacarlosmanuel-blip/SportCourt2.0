@@ -3,6 +3,7 @@ package com.sportcourt.backend.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.sportcourt.backend.model.Clase;
 import com.sportcourt.backend.repository.ClaseRepository;
+import com.sportcourt.backend.service.InscripcionService;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -77,7 +78,7 @@ class InscripcionControllerTest extends AbstractControllerTest {
         assertEquals(201, response.statusCode(), response.body());
         JsonNode body = json(response);
         assertEquals(clase.getId(), body.get("claseId").asInt());
-        assertEquals("activa", body.get("estado").asText());
+        assertEquals(InscripcionService.ESTADO_INICIAL, body.get("estado").asText());
     }
 
     @Test
@@ -256,5 +257,28 @@ class InscripcionControllerTest extends AbstractControllerTest {
         HttpResponse<String> response = mutate(session, "DELETE", "/api/inscripciones/" + id, null);
 
         assertEquals(204, response.statusCode());
+    }
+
+    @Test
+    @DisplayName("Tras cancelar, el usuario puede volver a inscribirse (la consulta ignora canceladas en BD)")
+    void reinscribirseTrasCancelar() throws Exception {
+        String email = uniqueEmail("inscripcion-reinscribir");
+        crearUsuario(email, "UserPass123", "usuario");
+        Session session = login(email, "UserPass123");
+
+        Clase clase = crearClase(1);
+        HttpResponse<String> creada = mutate(session, "POST", "/api/inscripciones", inscripcionDto(clase.getId()));
+        assertEquals(201, creada.statusCode(), creada.body());
+        int id = json(creada).get("id").asInt();
+
+        // Mientras está activa: duplicada -> 409
+        HttpResponse<String> duplicada = mutate(session, "POST", "/api/inscripciones", inscripcionDto(clase.getId()));
+        assertEquals(409, duplicada.statusCode());
+
+        mutate(session, "PUT", "/api/inscripciones/" + id + "/cancelar", null);
+
+        // Cancelada: ya no cuenta como duplicado ni ocupa el único cupo
+        HttpResponse<String> nueva = mutate(session, "POST", "/api/inscripciones", inscripcionDto(clase.getId()));
+        assertEquals(201, nueva.statusCode(), nueva.body());
     }
 }

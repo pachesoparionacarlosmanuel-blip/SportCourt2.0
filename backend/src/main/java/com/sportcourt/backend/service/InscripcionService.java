@@ -21,6 +21,9 @@ import java.util.List;
 @Transactional
 public class InscripcionService {
 
+    /** Estado con el que el backend crea toda inscripción nueva. */
+    public static final String ESTADO_INICIAL = "inscrita";
+
     private final InscripcionRepository inscripcionRepository;
     private final UsuarioService usuarioService;
     private final ClaseService claseService;
@@ -62,6 +65,10 @@ public class InscripcionService {
         // Validación 2: Clase existe
         claseService.obtenerClase(inscripcionDTO.getClaseId());
 
+        // Serializa las inscripciones concurrentes a la misma clase hasta
+        // que esta transacción termine (evita superar los cupos).
+        claseService.bloquearClase(inscripcionDTO.getClaseId());
+
         // Validación 3: NO hay inscripción duplicada
         validarNoDuplicada(inscripcionDTO);
 
@@ -73,7 +80,8 @@ public class InscripcionService {
         inscripcion.setUsuarioId(inscripcionDTO.getUsuarioId());
         inscripcion.setClaseId(inscripcionDTO.getClaseId());
         inscripcion.setFecha(inscripcionDTO.getFecha());
-        inscripcion.setEstado(inscripcionDTO.getEstado());
+        // El estado lo decide el backend, no el cliente.
+        inscripcion.setEstado(ESTADO_INICIAL);
 
         return inscripcionRepository.save(inscripcion);
     }
@@ -101,9 +109,7 @@ public class InscripcionService {
 
         Integer usuarioAutenticadoId = obtenerUsuarioAutenticadoId();
 
-        return inscripcionRepository.findAll().stream()
-                .filter(i -> i.getUsuarioId().equals(usuarioAutenticadoId))
-                .toList();
+        return inscripcionRepository.findByUsuarioId(usuarioAutenticadoId);
     }
 
     /**
@@ -111,9 +117,7 @@ public class InscripcionService {
      */
     public List<Inscripcion> obtenerInscripcionesDeUsuario(Integer usuarioId) {
         usuarioService.verificarUsuarioExiste(usuarioId);
-        return inscripcionRepository.findAll().stream()
-                .filter(i -> i.getUsuarioId().equals(usuarioId))
-                .toList();
+        return inscripcionRepository.findByUsuarioId(usuarioId);
     }
 
     /**
@@ -169,12 +173,9 @@ public class InscripcionService {
      * - Estado NO cancelada
      */
     private void validarNoDuplicada(InscripcionDTO inscripcionDTO) {
-        boolean yaInscrito = inscripcionRepository.findAll().stream()
-                .filter(i -> i.getUsuarioId().equals(inscripcionDTO.getUsuarioId()))
-                .filter(i -> i.getClaseId().equals(inscripcionDTO.getClaseId()))
-                .filter(i -> !i.getEstado().equals("cancelada"))
-                .findAny()
-                .isPresent();
+        boolean yaInscrito = inscripcionRepository.existeInscripcionActiva(
+                inscripcionDTO.getUsuarioId(),
+                inscripcionDTO.getClaseId());
 
         if (yaInscrito) {
             throw new BusinessException(
@@ -189,13 +190,15 @@ public class InscripcionService {
      * Cupos disponibles = cupos totales - inscripciones activas
      */
     private void validarCuposDisponibles(Integer claseId) {
+        // Una clase sin cupos definidos no admite inscripciones (antes lanzaba
+        // NullPointerException al desempaquetar y respondía 500).
         Integer cuposTotales = claseService.obtenerCuposDisponibles(claseId);
+        if (cuposTotales == null) {
+            cuposTotales = 0;
+        }
 
         // Contar inscripciones activas en esta clase
-        long inscripcionesActivas = inscripcionRepository.findAll().stream()
-                .filter(i -> i.getClaseId().equals(claseId))
-                .filter(i -> !i.getEstado().equals("cancelada"))
-                .count();
+        long inscripcionesActivas = inscripcionRepository.contarInscripcionesActivas(claseId);
 
         if (inscripcionesActivas >= cuposTotales) {
             throw new BusinessException(

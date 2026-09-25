@@ -75,7 +75,6 @@ public class SecurityConfig {
 
                                                 // Login público.
                                                 .requestMatchers("/api/login", "/api/csrf").permitAll()
-                                                .requestMatchers("/api/csrf").permitAll()
 
                                                 // Documentación OpenAPI / Swagger UI.
                                                 .requestMatchers(
@@ -103,8 +102,11 @@ public class SecurityConfig {
                                                                 "/assets/**")
                                                 .permitAll()
 
-                                                // Panel de admin: solo administradores, ni siquiera
-                                                // visible para visitantes o usuarios sin ese rol.
+                                                // Panel de admin: solo administradores. Esta regla solo
+                                                // aplica si el backend sirve el frontend; hoy las páginas
+                                                // las sirve un servidor estático aparte, así que la
+                                                // protección efectiva del panel son las reglas de /api
+                                                // de abajo (las operaciones de gestión exigen ROLE_ADMIN).
                                                 .requestMatchers("/admin.html")
                                                 .hasRole("ADMIN")
 
