@@ -239,3 +239,80 @@ jobs:
 
           echo "Railway TEST no respondió como se esperaba."
           exit 1
+
+
+  deploy-prod:
+    name: Promover imagen a PROD
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: read
+    needs:
+      - validate-test
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: PROD
+
+    concurrency:
+      group: production
+      cancel-in-progress: false
+
+    steps:
+      - name: Mostrar imagen a promover
+        run: |
+          echo "Imagen:"
+          echo "ghcr.io/pachesoparionacarlosmanuel-blip/sportcourt2.0:${{ github.sha }}"
+
+      - name: Iniciar sesión en GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verificar imagen en GHCR
+        env:
+          IMAGE: ghcr.io/pachesoparionacarlosmanuel-blip/sportcourt2.0:${{ github.sha }}
+        run: |
+          docker manifest inspect "$IMAGE" > /dev/null
+          echo "Imagen SHA disponible en GHCR."
+
+      - name: Configurar Railway CLI
+        run: |
+          npm install -g @railway/cli@5.62.1
+
+      - name: Promover imagen SHA a PROD
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          IMAGE: ghcr.io/pachesoparionacarlosmanuel-blip/sportcourt2.0:${{ github.sha }}
+        run: |
+          railway service source connect \
+            --image "$IMAGE" \
+            --service stunning-truth \
+            --environment PROD \
+            --project fce9e8e7-4284-49c6-8111-3761461d1cfd \
+            --yes
+
+      - name: Verificar PROD
+        run: |
+          echo "Esperando respuesta de PROD..."
+
+          for i in {1..30}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              https://stunning-truth-production-0b63.up.railway.app/api/canchas)
+
+            echo "Intento $i/30 - HTTP $STATUS"
+
+            if [ "$STATUS" = "200" ]; then
+              echo "PROD está respondiendo correctamente."
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "PROD no respondió correctamente."
+          exit 1
