@@ -15,5 +15,5 @@ jobs:
       - name: Ejecutar ZAP Baseline
         uses: zaproxy/action-baseline@v0.15.0
         with:
-          target: 'https://stunning-truth-dev.up.railway.app'
+          target: 'https://stunning-truth-ghcr-dev.up.railway.app'
           allow_issue_writing: false
