@@ -208,3 +208,34 @@ jobs:
           tags: |
             ghcr.io/pachesoparionacarlosmanuel-blip/sportcourt2.0:${{ github.sha }}
             ghcr.io/pachesoparionacarlosmanuel-blip/sportcourt2.0:latest
+
+
+  validate-test:
+    name: Validar Railway TEST
+    runs-on: ubuntu-latest
+    needs:
+      - publish-ghcr
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Esperar despliegue de Railway TEST
+        run: |
+          echo "Esperando a que Railway TEST despliegue la nueva imagen..."
+
+          for i in {1..30}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              https://stunning-truth-ghcr-test.up.railway.app/api/canchas)
+
+            echo "Intento $i/30 - HTTP $STATUS"
+
+            if [ "$STATUS" = "200" ]; then
+              echo "Railway TEST está respondiendo correctamente."
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "Railway TEST no respondió como se esperaba."
+          exit 1
