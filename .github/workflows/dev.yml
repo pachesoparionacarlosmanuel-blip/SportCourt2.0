@@ -115,12 +115,32 @@ jobs:
           java-version: 21
           cache: maven
 
+      - name: Obtener hora para clave de caché
+        id: cache-key
+        run: echo "datetime=$(date -u +'%Y%m%d%H')" >> "$GITHUB_OUTPUT"
+
+      - name: Restaurar caché de Dependency-Check
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ runner.os }}-dependency-check-${{ steps.cache-key.outputs.datetime }}-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-dependency-check-${{ steps.cache-key.outputs.datetime }}-
+            ${{ runner.os }}-dependency-check-
+
       - name: Analizar dependencias Maven
+        id: dependency-check
         working-directory: backend
         env:
-           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: ./mvnw org.owasp:dependency-check-maven:12.2.2:check -DfailBuildOnCVSS=8 -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
 
+      - name: Guardar caché de Dependency-Check
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ runner.os }}-dependency-check-${{ steps.cache-key.outputs.datetime }}-${{ hashFiles('backend/pom.xml') }}
 
   docker-trivy:
     name: Docker Build + Trivy
